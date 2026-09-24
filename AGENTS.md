@@ -14,18 +14,21 @@ Samba SMBv3, UFW + Fail2ban y respaldos rotativos de 7 días.
 
 ## 2. Mapa de archivos
 
-| Archivo | Rol |
+| Archivo / Directorio | Rol |
 | :--- | :--- |
-| `install.sh` | Bootstrap del `curl`: descarga los 3 scripts a `/root` y lanza el asistente. Prompts por `/dev/tty`. |
-| `asistente_servidor.sh` | Wizard de despliegue (idempotente, pre-chequeos, logging, auto-verificación). |
+| `install.sh` | Bootstrap del `curl`: descarga el repositorio completo a `/root/svr_web_debian` y lanza el asistente. Prompts por `/dev/tty`. |
+| `asistente_servidor.sh` | Wizard de despliegue (orquestador modular, pre-chequeos, logging, auto-verificación). |
 | `verificar_servidor.sh` | Auto-test del stack (40 comprobaciones PASS/FAIL; incluye login real a phpMyAdmin). |
-| `limpiar_servidor.sh` | Reset a estado base limpio (preserva el acceso SSH/sudo del usuario actual). |
+| `limpiar_servidor.sh` | Reset a estado base limpio (orquestador que ejecuta la suite de `scripts/cleanup/`). |
 | `pma_login_test.sh` | Prueba puntual de login a phpMyAdmin (diagnóstico). |
+| `scripts/common.sh` | Utilidades y funciones comunes (logging, validación de root, detección y carga de configuración). |
+| `scripts/deploy/` | Módulos de despliegue reutilizables (01_energia hasta 13_respaldos_cron). |
+| `scripts/cleanup/` | Módulos de limpieza y rollback reutilizables (01_detener_servicios hasta 05_eliminar_usuarios). |
 | `manual_maestro_..._13.md` | Manual técnico. **Referencia histórica** parcialmente supersedida (ver nota en su §3). |
 | `README.md` | Manual principal y ficha del repo. |
 | `AGENTS.md` | Este archivo. |
 | `LICENSE` | Licencia propietaria. |
-| `.github/workflows/ci.yml` | CI: `bash -n` + `shellcheck -S error` + `actionlint`. |
+| `.github/workflows/ci.yml` | CI: `bash -n` + `shellcheck -S error` + `actionlint` (recursivo para todos los `.sh`). |
 | `.gitattributes` / `.gitignore` | LF obligatorio / exclusión de secretos. |
 
 ## 3. Reglas de trabajo (obligatorias)
