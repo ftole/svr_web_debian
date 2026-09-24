@@ -13,7 +13,7 @@ fi
 
 SERVER_IP="${SERVER_IP:-127.0.0.1}"
 BASE_DOMAIN="${BASE_DOMAIN:-empresa.local}"
-PROD_FQDN="${PROD_FQDN:-izzi.${BASE_DOMAIN}}"
+PROD_FQDN="${PROD_FQDN:-prod.${BASE_DOMAIN}}"
 STG_FQDN="${STG_FQDN:-stg.${BASE_DOMAIN}}"
 DB_FQDN="${DB_FQDN:-webdev.${BASE_DOMAIN}}"
 
@@ -134,7 +134,7 @@ check "SSL incluye IP ${SERVER_IP}"            bash -c "openssl x509 -in /etc/ss
 
 # --- Samba ---------------------------------------------------------------------
 check "Samba: configuracion valida"            testparm -s
-check "Samba: recurso [izzi] definido"         bash -c "testparm -s 2>/dev/null | grep -q '\\[izzi\\]'"
+check "Samba: recurso [prod] definido"         bash -c "testparm -s 2>/dev/null | grep -q '\\[prod\\]'"
 check "Samba: recurso [stg] definido"          bash -c "testparm -s 2>/dev/null | grep -q '\\[stg\\]'"
 
 # --- Respaldos -----------------------------------------------------------------
