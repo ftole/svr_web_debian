@@ -35,6 +35,10 @@ ServerSignature Off
 TraceEnable Off
 Header always set X-Content-Type-Options "nosniff"
 Header always set X-Frame-Options "SAMEORIGIN"
+
+<FilesMatch "^\.(git|env|user\.ini|htaccess)|(\.key|\.sql|\.bak)$">
+    Require all denied
+</FilesMatch>
 EOF
     a2enconf security-hardening >/dev/null 2>&1 || true
 
