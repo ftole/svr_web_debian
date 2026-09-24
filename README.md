@@ -21,7 +21,7 @@
 
 1. [Vision general y caracteristicas](#vision-general-y-caracteristicas)
 2. [Arquitectura del sistema](#arquitectura-del-sistema)
-3. [Resolucion DNS con Pi-hole](#resolucion-dns-con-pi-hole)
+3. [Resolucion DNS y opciones de red](#resolucion-dns-y-opciones-de-red)
 4. [Requisitos previos](#requisitos-previos)
 5. [Instalacion rapida](#instalacion-rapida)
 6. [Flujo de trabajo para desarrolladores](#flujo-de-trabajo-para-desarrolladores)
@@ -30,6 +30,7 @@
 9. [Seguridad y auditoria](#seguridad-y-auditoria)
 10. [Estructura del proyecto](#estructura-del-proyecto)
 11. [Verificacion y auto-diagnostico](#verificacion-y-auto-diagnostico)
+12. [Manual detallado de operacion (Manual.md)](Manual.md)
 
 ---
 
@@ -104,24 +105,25 @@ flowchart TD
 
 ---
 
-## Resolucion DNS con Pi-hole
+## Resolucion DNS y opciones de red
 
-Para evitar tener que modificar el archivo `hosts` en cada equipo cada vez que se crea un subdominio, el entorno utiliza una regla comodin (wildcard) en su servidor **Pi-hole**. Debian no ejecuta ningun servidor DNS local adicional.
+Para evitar tener que modificar el archivo `hosts` en cada equipo cliente cada vez que se crea un subdominio, se requiere un mecanismo que resuelva comodines (*wildcards* hacia `*.empresa.local`). Debian no ejecuta ningun servidor DNS local propio para mantener la maxima ligereza del sistema.
 
-### Configuracion en 1 paso en Pi-hole:
-
-1. Ingrese a la consola o SSH de su servidor Pi-hole.
-2. Agregue una regla comodin en `/etc/dnsmasq.d/02-wildcard.conf`:
+### Opcion recomendada: Servidor DNS Pi-hole
+Si cuentas con Pi-hole en tu red local, es la solucion mas comoda y transparente para todos los dispositivos:
+1. Agregue una regla comodin en `/etc/dnsmasq.d/02-wildcard.conf`:
    ```bash
    address=/.empresa.local/10.1.0.4
    ```
    *(Sustituya `empresa.local` por su dominio base y `10.1.0.4` por la IP de su servidor Debian).*
-3. Reinicie el servicio DNS de Pi-hole:
-   ```bash
-   pihole restartdns
-   ```
+2. Reinicie el servicio DNS: `pihole restartdns`.
 
-A partir de este momento, cualquier peticion hacia `empresa.local`, `prod.empresa.local`, `tienda.empresa.local` o cualquier subdominio nuevo resolvera de forma automatica e instantanea a la IP del servidor.
+### Otras alternativas de resolucion:
+- **Router / Servidor DNS local (dnsmasq, MikroTik, pfSense, Windows Server):** Puede configurar la regla comodin directamente en su router o servidor DNS central.
+- **Dominio publico con comodin DNS:** Si dispone de un dominio publico (ej. Cloudflare o DuckDNS), puede crear un registro comodin `*` apuntando a la IP local de su servidor.
+- **Archivo hosts tradicional:** Si no tiene acceso al router ni servidor DNS, puede agregar los proyectos puntuales en `C:\Windows\System32\drivers\etc\hosts`.
+
+Consulte la guia detallada con ejemplos en [`Manual.md`](Manual.md).
 
 ---
 
@@ -230,6 +232,7 @@ srvctl [comando] [argumentos]
 | `srvctl status` | Muestra el estado operativo de los servicios del stack |
 | `srvctl verify` | Ejecuta la suite de diagnostico profundo y auto-verificacion (40 comprobaciones) |
 | `srvctl project create <nombre>` | Crea la estructura base para un nuevo proyecto (`public_html/index.php`) |
+| `srvctl project db <nombre>` | Crea base de datos MariaDB, usuario, clave segura y genera archivo `.env` |
 | `srvctl project list` | Lista los proyectos activos detectados en `/var/www` |
 | `srvctl backup` | Ejecuta un respaldo manual inmediato de base de datos y archivos web |
 | `srvctl reset` | Revierte el servidor al estado base limpio (rollback seguro) |
