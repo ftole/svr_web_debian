@@ -80,7 +80,7 @@ Todos con **redirección 301** de HTTP a HTTPS y **certificado comodín**.
 - Debian 13 (Trixie) recién instalado o con posibilidad de purgar paquetes.
 - Acceso **`root`** o usuario con `sudo`.
 - Conexión a Internet (repositorios APT y descarga de scripts).
-- Puertos 80/443/445/3389 libres y alcanzables.
+- Puertos **22** (SSH), **80**/**443** (web), **445** (Samba) y **3389** (RDP) libres y alcanzables.
 
 ---
 
@@ -166,6 +166,8 @@ por pantalla y `Enter` acepta el valor por defecto).
 3. **Unidades de red Samba** `\\IP\prod` y `\\IP\stg` con el usuario administrador.
 4. **Certificado raíz** disponible en `\\IP\prod\public_html\rootCA.crt` para importarlo como
    de confianza.
+5. **SSH / Git**: el bloque de Windows crea el alias **`ssh web`**; úsalo para administrar y
+   versionar los repositorios Git locales (`/var/www/prod`, `/var/www/stg`).
 
 ---
 
@@ -180,6 +182,12 @@ sudo bash /root/verificar_servidor.sh
 Comprueba: servicios activos, reglas UFW, HTTP→HTTPS, PHP-FPM, **login real a phpMyAdmin sin
 el aviso de almacenamiento ni advertencias de Twig**, SSL/SAN, Samba, respaldos y permisos.
 Devuelve `0` si todo pasa.
+
+Para una prueba puntual de login a phpMyAdmin (diagnóstico):
+
+```bash
+sudo PMA_HOST=webdev.tudominio.local bash /root/pma_login_test.sh
+```
 
 ---
 
@@ -249,6 +257,9 @@ El asistente imprime un bloque listo para pegar en **PowerShell (como Administra
 2. Habilita `EnableLinkedConnections` (para que las unidades mapeadas como administrador se vean en el Explorador).
 3. Monta las unidades de red Samba en **letras libres automáticas** (no fija `Z:`/`Y:`; salta las ocupadas).
 4. Importa el certificado raíz **por UNC** (`\\IP\prod\public_html\rootCA.crt`), sin depender de una letra de unidad.
+5. Crea una **llave SSH** (`id_ed25519_web`) y el alias **`web`** en `~/.ssh/config` para gestionar Git en el servidor.
+
+Con el alias `web` te conectas con `ssh web` y trabajas con los repositorios Git locales de `/var/www/prod` y `/var/www/stg` (control de versiones).
 
 > [!NOTE]
 > Las unidades se mapean desde PowerShell **como Administrador**. Windows aísla esos mapeos de la
