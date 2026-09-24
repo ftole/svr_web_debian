@@ -1,0 +1,9 @@
+# Credenciales locales de pruebas: NUNCA subir al repositorio
+debian_pruebas.txt
+
+# Logs y archivos temporales
+*.log
+*.tmp
+*.bak
+*.orig
+.pma_cookies*
