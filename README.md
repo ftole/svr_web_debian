@@ -50,7 +50,7 @@ Asistente (**wizard interactivo**) que despliega una arquitectura web tipo *Host
 | **Energía** | Bloqueo de suspensión/hibernación/cierre de tapa vía systemd |
 | **Red** | IPv4 activo / IPv6 deshabilitado a nivel kernel |
 | **SSL** | CA raíz privada + certificado SAN comodín (`*.dominio.local` + IP) |
-| **Control de versiones** | Repositorio Git local en cada raíz web (`/var/www/izzi`, `/var/www/stg`) |
+| **Control de versiones** | Repositorio Git local en cada raíz web (`/var/www/prod`, `/var/www/stg`) |
 | **Auditoría** | Registro de comandos administrativos en `/var/log/sudo.log` |
 | **Respaldos** | Snapshots diarios por hard-links (7 días) + volcados SQL comprimidos |
 
@@ -62,7 +62,7 @@ Se parte de un **dominio base** y se generan tres subdominios:
 
 | Entorno | Host | DocumentRoot |
 | :--- | :--- | :--- |
-| Producción | `izzi.<dominio>` | `/var/www/izzi/public_html` |
+| Producción | `prod.<dominio>` | `/var/www/prod/public_html` |
 | Pruebas / Staging | `stg.<dominio>` | `/var/www/stg/public_html` |
 | phpMyAdmin | `webdev.<dominio>` | `/usr/share/phpmyadmin` |
 
@@ -111,7 +111,7 @@ less /tmp/install.sh && sudo bash /tmp/install.sh
 curl -fsSL https://raw.githubusercontent.com/ftole/svr_web_debian/main/install.sh -o /tmp/install.sh
 sudo ASISTENTE_NONINTERACTIVE=1 \
      SERVER_IP=10.0.0.10 BASE_DOMAIN=miempresa.local \
-     PROD_SUB=izzi STG_SUB=stg DB_SUB=webdev \
+     PROD_SUB=prod STG_SUB=stg DB_SUB=webdev \
      ADMIN_USER=adminweb ADMIN_PASS='MiClaveSegura#' \
      bash /tmp/install.sh
 ```
@@ -132,7 +132,7 @@ por pantalla y `Enter` acepta el valor por defecto).
 | `ASISTENTE_NONINTERACTIVE` | `1` desactiva los prompts | auto (`1` si no hay TTY) |
 | `SERVER_IP` | IP del servidor | autodetectada |
 | `BASE_DOMAIN` | Dominio base | `empresa.local` |
-| `PROD_SUB` | Subdominio de Producción | `izzi` |
+| `PROD_SUB` | Subdominio de Producción | `prod` |
 | `STG_SUB` | Subdominio de Pruebas | `stg` |
 | `DB_SUB` | Subdominio de phpMyAdmin | `webdev` |
 | `ADMIN_USER` | Usuario administrador (SO, MariaDB y Samba) | `webadmin` |
@@ -163,8 +163,8 @@ por pantalla y `Enter` acepta el valor por defecto).
 2. **Credenciales**: al finalizar, el asistente imprime una pantalla de resguardo con la IP,
    dominios, credenciales y los comandos de Windows. Se guarda además en
    `/etc/asistente_servidor.conf` (modo `600`, solo `root`).
-3. **Unidades de red Samba** `\\IP\izzi` y `\\IP\stg` con el usuario administrador.
-4. **Certificado raíz** disponible en `\\IP\izzi\public_html\rootCA.crt` para importarlo como
+3. **Unidades de red Samba** `\\IP\prod` y `\\IP\stg` con el usuario administrador.
+4. **Certificado raíz** disponible en `\\IP\prod\public_html\rootCA.crt` para importarlo como
    de confianza.
 
 ---
@@ -246,14 +246,14 @@ limpieza de la caché de plantillas). Se reaplica de forma idempotente en cada e
 El asistente imprime un bloque listo para pegar en **PowerShell (como Administrador)** que:
 
 1. Registra los dominios en el archivo `hosts`.
-2. Monta las unidades de red Samba (`Z:` y `Y:`).
-3. Importa el certificado raíz (candado verde).
+2. Monta las unidades de red Samba en **letras libres automáticas** (no fija `Z:`/`Y:`; salta las ocupadas).
+3. Importa el certificado raíz **por UNC** (`\\IP\prod\public_html\rootCA.crt`), sin depender de una letra de unidad.
 
 > [!TIP]
 > **¿Por qué se registran los subdominios y no solo el dominio principal?**
 > El certificado es comodín (`*.dominio.local`), así que TLS ya valida todos los subdominios.
 > Pero el archivo `hosts` de Windows es una **lista plana sin comodines**: si solo agregas
-> `dominio.local`, `izzi.dominio.local` no resolverá a la IP y el navegador no podrá conectar
+> `dominio.local`, `prod.dominio.local` no resolverá a la IP y el navegador no podrá conectar
 > (error de resolución, no de certificado). Por eso se registran cada uno de los subdominios.
 > Alternativa: usar un DNS con comodín (p. ej. `dnsmasq`) o un dominio público real.
 
