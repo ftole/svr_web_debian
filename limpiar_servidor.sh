@@ -29,7 +29,7 @@ apt-get autoremove --purge -y 2>/dev/null || true
 apt-get clean 2>/dev/null || true
 
 echo "=== 3. Eliminando archivos y carpetas residuales ==="
-rm -rf /var/www/izzi /var/www/stg
+rm -rf /var/www/prod /var/www/stg
 rm -rf /etc/apache2 /etc/php /etc/mysql /etc/samba /var/lib/mysql /var/log/samba /etc/phpmyadmin
 rm -rf /etc/ssl/localcerts /backup /opt/scripts
 rm -rf /var/lib/phpmyadmin /var/lib/php
