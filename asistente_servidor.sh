@@ -601,7 +601,11 @@ Add-Content -Path \$hostsPath -Value \$entries -Force
 Clear-DnsClientCache
 Write-Host "[OK] Dominios registrados en Windows y cache DNS purgada." -ForegroundColor Green
 
-# 2. Montaje de Unidades de Red Samba en letras libres (auto)
+# 2. Hacer visibles en el Explorador las unidades mapeadas como administrador
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLinkedConnections /t REG_DWORD /d 1 /f | Out-Null
+Write-Host "[OK] EnableLinkedConnections habilitado." -ForegroundColor Green
+
+# 3. Montaje de Unidades de Red Samba en letras libres (auto)
 function Get-FreeDriveLetter {
     \$used = @((Get-CimInstance Win32_LogicalDisk -ErrorAction SilentlyContinue).DeviceID -replace ':')
     foreach (\$l in 'Z','Y','X','W','V','U','T','S','R','Q','P','O','N','M','L','K','J','I','H','G','F','E') {
@@ -615,7 +619,7 @@ if (\$driveProd) { net use \$driveProd \\\\\$ServerIP\\prod /user:\$AdminUser \$
 if (\$driveStg) { net use \$driveStg \\\\\$ServerIP\\stg /user:\$AdminUser \$AdminPass /persistent:yes | Out-Null }
 Write-Host "[OK] Recursos Samba montados (prod=\$driveProd, stg=\$driveStg)." -ForegroundColor Green
 
-# 3. Importacion del Certificado SSL Raiz (por UNC, sin depender de la letra)
+# 4. Importacion del Certificado SSL Raiz (por UNC, sin depender de la letra)
 \$certSrc = "\\\\\$ServerIP\\prod\\public_html\\rootCA.crt"
 \$certTmp = "\$env:TEMP\\rootCA.crt"
 if (Test-Path \$certSrc) {
@@ -625,6 +629,8 @@ if (Test-Path \$certSrc) {
 } else {
     Write-Host "[WARN] No se pudo leer \$certSrc. Instalalo manualmente." -ForegroundColor Yellow
 }
+# NOTA: si las unidades no aparecen en el Explorador, reinicia Windows una vez
+#       (EnableLinkedConnections ya quedo aplicado y los mapeos son persistentes).
 ==============================================================================
 RESGUARDO_EOF
 
