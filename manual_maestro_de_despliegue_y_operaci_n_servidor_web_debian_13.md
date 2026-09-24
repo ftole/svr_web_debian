@@ -10,7 +10,7 @@
 | **Sistema Operativo** | Debian GNU/Linux 13 (Trixie) x86_64 |
 | **Pila Web** | Apache 2.4 (MPM Event) + PHP 8.4 FPM (FastCGI) |
 | **Motor de Base de Datos** | MariaDB 11.8 con acceso administrativo dual (`localhost` y `127.0.0.1`) |
-| **Gestor Visual DB** | phpMyAdmin 5.x / 6.x en VirtualHost dedicado por subdominio |
+| **Gestor Visual DB** | phpMyAdmin 5.2.2 en VirtualHost dedicado por subdominio |
 | **Compartición de Red** | Samba 4.22 (SMBv3 forzado, NetBIOS deshabilitado, puertos 445/tcp) |
 | **Seguridad Perimetral** | UFW (IPv4 exclusivo) + Fail2ban (Jail SSH con bloqueo progresivo) |
 | **Puertos Abiertos UFW** | 22 (SSH), 80 (HTTP), 443 (HTTPS), 445 (Samba), 3389 (GNOME RDP) |
@@ -27,6 +27,11 @@
 ## 2. Procedimiento de Limpieza Total (Retorno a Estado Base Recién Instalado)
 
 Si tu servidor ya contiene paquetes a medio configurar o carpetas residuales, ejecuta este bloque en Debian como `root` para garantizar un entorno limpio antes de lanzar el asistente:
+
+> [!NOTE]
+> La versión canónica y mantenida de este procedimiento es el archivo **`limpiar_servidor.sh`** del
+> repositorio (ejecútalo con `sudo bash limpiar_servidor.sh`). El bloque siguiente se conserva como
+> referencia histórica.
 
 ```bash
 #!/bin/bash
@@ -52,9 +57,11 @@ echo "=== 3. Eliminando archivos y carpetas residuales ==="
 rm -rf /var/www/prod /var/www/stg
 rm -rf /etc/apache2 /etc/php /etc/mysql /etc/samba /var/lib/mysql /var/log/samba /etc/phpmyadmin
 rm -rf /etc/ssl/localcerts /backup /opt/scripts
+rm -rf /var/lib/phpmyadmin /var/lib/php
 rm -f /var/log/backup-daily.log /var/log/sudo.log /etc/cron.d/web-daily-backup
 rm -f /etc/sysctl.d/99-disable-ipv6.conf /etc/sudoers.d/99-audit-log /etc/ssh/sshd_config.d/01-hardening.conf
-rm -f /etc/systemd/logind.conf.d/99-nas.conf /root/asistente_servidor.sh
+rm -f /etc/systemd/logind.conf.d/99-nas.conf
+rm -f /root/asistente_servidor.sh /root/verificar_servidor.sh /etc/asistente_servidor.conf
 
 mkdir -p /var/www/html
 chown -R root:root /var/www
@@ -80,9 +87,12 @@ echo "=== SISTEMA RESTAURADO AL ESTADO BASE LIMPIO ==="
 
 ## 3. Asistente Interactivo de Despliegue (Script Wizard)
 
-> **IMPORTANTE (revisión 2026-09):** El script incrustado más abajo corresponde a la versión original y **queda supersedido** por el archivo independiente **`asistente_servidor.sh`**, que corrige dos defectos detectados en pruebas reales:
+> **IMPORTANTE (revisión 2026-09):** El script incrustado más abajo corresponde a la versión original y **queda supersedido** por **`install.sh`** (bootstrap) + **`asistente_servidor.sh`** (wizard), que corrigen/mejoran lo siguiente:
 > 1. **phpMyAdmin:** el script original usa `dbconfig-install boolean false`, lo que deja `$dbuser`/`$dbpass` vacíos en `/etc/phpmyadmin/config-db.php` y provoca el aviso *«El almacenamiento de configuración phpMyAdmin no está completamente configurado…»*. La versión corregida configura el `pmadb`, el usuario de control y las tablas `pma__*` de forma determinista.
 > 2. **Twig:** phpMyAdmin 5.2.2 con `php-twig` ≥ 3.21 emite advertencias deprecadas (`getExpressionParser()`). La versión corregida aplica el parche oficial no invasivo.
+> 3. **Prompts:** el bootstrap lee los datos de `/dev/tty`, de modo que `curl | sudo bash` sigue siendo interactivo.
+> 4. **Bloque Windows:** monta Samba en **letras libres automáticas**, habilita `EnableLinkedConnections`, importa el certificado **por UNC** y crea el alias SSH **`web`**.
+> 5. **Nombres genéricos:** el subdominio/directorio/recursos de producción usan **`prod`** (antes `izzi`).
 >
 > Además la versión corregida es **idempotente**, **agrega por defecto al usuario de instalación del SO al grupo `sudo`**, escribe log en `/var/log/asistente_servidor.log` y ejecuta una **auto-verificación** con `verificar_servidor.sh`. Ver **ANEXO A** al final del documento.
 
@@ -591,23 +601,23 @@ if (Test-Path \$certSource) {
     Write-Host "[WARN] No se pudo leer Z:\public_html\rootCA.crt directamente. Instalalo manualmente." -ForegroundColor Yellow
 }
 
-# 4. Configurar Llave SSH y Conexión mediante Alias 'webdev'
-if (!(Test-Path "\$env:USERPROFILE\.ssh\id_ed25519_webdev")) {
-    ssh-keygen -t ed25519 -f "\$env:USERPROFILE\.ssh\id_ed25519_webdev" -N '""'
+# 4. Configurar Llave SSH y Conexión mediante Alias 'web'
+if (!(Test-Path "\$env:USERPROFILE\.ssh\id_ed25519_web")) {
+    ssh-keygen -t ed25519 -f "\$env:USERPROFILE\.ssh\id_ed25519_web" -N '""'
 }
-Get-Content "\$env:USERPROFILE\.ssh\id_ed25519_webdev.pub" | ssh ${ADMIN_USER}@\$ServerIP "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+Get-Content "\$env:USERPROFILE\.ssh\id_ed25519_web.pub" | ssh ${ADMIN_USER}@\$ServerIP "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 
 \$sshConfig = "\$env:USERPROFILE\.ssh\config"
 \$configEntry = @"
 
-Host webdev
+Host web
     HostName \$ServerIP
     User ${ADMIN_USER}
-    IdentityFile ~/.ssh/id_ed25519_webdev
+    IdentityFile ~/.ssh/id_ed25519_web
     ServerAliveInterval 60
 "@
 Add-Content -Path \$sshConfig -Value \$configEntry
-Write-Host "[OK] Alias SSH listo. Puedes conectarte escribiendo: ssh webdev" -ForegroundColor Green
+Write-Host "[OK] Alias SSH listo. Puedes conectarte escribiendo: ssh web" -ForegroundColor Green
 ==============================================================================
 RESGUARDO_EOF
 EOF
@@ -620,7 +630,10 @@ chmod +x /root/asistente_servidor.sh
 
 ## 4. Manual de Reversión y Rollback Operativo
 
-Para realizar cualquier recuperación ante fallas de despliegue, errores de desarrollo o incidentes de base de datos, conéctate vía SSH (`ssh webdev` o con el usuario configurado) y ejecuta el procedimiento respectivo:
+Para realizar cualquier recuperación ante fallas de despliegue, errores de desarrollo o incidentes de base de datos, conéctate vía SSH (`ssh web`, alias creado por el bloque de Windows, o con el usuario configurado) y ejecuta el procedimiento respectivo:
+
+> [!NOTE]
+> En los ejemplos se usa `webadmin` como usuario administrador; sustitúyelo por tu `ADMIN_USER` si configuraste otro.
 
 ### A. Reversión de Cambios en Código Web (Git)
 Aplica cuando un archivo editado desde Windows corrompe el sitio:
@@ -703,9 +716,11 @@ Este anexo documenta los defectos detectados en pruebas reales sobre Debian 13 (
 
 | Archivo | Rol |
 | :--- | :--- |
+| `install.sh` | Bootstrap que consume el `curl` (descarga los scripts y lanza el asistente; prompts por `/dev/tty`). |
 | `asistente_servidor.sh` | Wizard interactivo de despliegue (idempotente, con auto-verificación). |
 | `verificar_servidor.sh` | Auto-test del stack completo (40 comprobaciones PASS/FAIL). |
 | `limpiar_servidor.sh` | Retorno al estado base limpio (purga total, preserva acceso SSH). |
+| `pma_login_test.sh` | Prueba puntual de login a phpMyAdmin (diagnóstico). |
 
 ### A.2 Uso rápido (como `root`)
 
