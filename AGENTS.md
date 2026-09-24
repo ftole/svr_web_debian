@@ -20,7 +20,6 @@ Samba SMBv3, UFW + Fail2ban y respaldos rotativos de 7 días.
 | `asistente_servidor.sh` | Wizard de despliegue (orquestador modular, pre-chequeos, logging, auto-verificación). |
 | `verificar_servidor.sh` | Auto-test del stack (40 comprobaciones PASS/FAIL; incluye login real a phpMyAdmin). |
 | `limpiar_servidor.sh` | Reset a estado base limpio (orquestador que ejecuta la suite de `scripts/cleanup/`). |
-| `pma_login_test.sh` | Prueba puntual de login a phpMyAdmin (diagnóstico). |
 | `scripts/common.sh` | Utilidades y funciones comunes (logging, validación de root, detección y carga de configuración). |
 | `scripts/deploy/` | Módulos de despliegue reutilizables (01_energia hasta 13_respaldos_cron). |
 | `scripts/cleanup/` | Módulos de limpieza y rollback reutilizables (01_detener_servicios hasta 05_eliminar_usuarios). |
@@ -124,5 +123,4 @@ Comprobar: `gh run list --limit 3`.
 
 ## 10. Pendientes / ideas
 
-- Valorar reemplazar el script incrustado del manual (§3, ~600 líneas obsoletas) por un enlace a los archivos reales.
 - Posible endurecimiento: `NoNewPrivileges`/`ProtectSystem` para phpMyAdmin, rotación de logs, tests en contenedor Debian.
