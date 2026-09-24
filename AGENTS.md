@@ -10,7 +10,7 @@ Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.
 
 - **CLI principal:** `srvctl` instalado en `/usr/local/bin/srvctl` (orquestación modular con TUI interactiva y subcomandos).
 - **Ruteo web:** Dominio base para Dashboard de bienvenida y salud (`_dashboard`). Subdominios dinámicos sin configuración para nuevos proyectos vía `mod_vhost_alias`.
-- **Resolución DNS:** Delegada a servidor **Pi-hole** mediante regla comodín (`address=/.empresa.local/<IP>`). Debian **no** ejecuta servicios DNS locales.
+- **Resolución DNS:** Delegada preferentemente a **Pi-hole** (recomendado mediante `address=/.empresa.local/<IP>`), o bien mediante router local (dnsmasq/MikroTik/pfSense), dominio público con comodín o archivo `hosts`. Debian **no** ejecuta servicios DNS locales.
 - **Repositorio:** `https://github.com/ftole/svr_web_debian` (rama `main`, **público**).
 - **Titular/licencia:** propietaria — `José Francisco Toledo` <cisco_red@outlook.com> (ver `LICENSE`).
 - **Idioma:** documentación, mensajes de commit y comentarios en **español**. No usar emojis salvo que se pida.
@@ -30,10 +30,11 @@ Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.
 | `modules/share/` | Servidor Samba SMBv3 con recurso unificado `[proyectos]` sobre `/var/www`. |
 | `modules/backup/` | Sistema de respaldos diarios por snapshots rotativos de 7 dias y volcados SQL. |
 | `templates/dashboard/` | Codigo fuente del panel de salud y monitor del dominio base (`index.php`, `not_found.php`). |
-| `templates/windows/` | Scripts de aprovisionamiento en 1 clic para clientes (`configurar-cliente.bat`, `configurar-desarrollador.bat`). |
+| `templates/windows/` | Scripts de aprovisionamiento en 1 clic para clientes (`configurar-cliente.bat`, `configurar-desarrollador.bat`, `.ps1`). |
 | `tests/test_validator.sh` | Suite de pruebas unitarias automatizadas y chaos testing de validacion de entradas. |
 | `install.sh` | Bootstrap de instalacion via `curl`: descarga a `/opt/srvctl` y enlaza el CLI global. |
 | `README.md` | Manual principal y documentacion de arquitectura. |
+| `Manual.md` | Manual de operacion y guia paso a paso en lenguaje 100% humano. |
 | `AGENTS.md` | Este archivo de contexto y directrices tecnicas. |
 | `LICENSE` | Licencia propietaria. |
 | `.github/workflows/ci.yml` | Integracion continua: `bash -n` + `shellcheck -S warning` + pruebas unitarias + `actionlint`. |
@@ -103,15 +104,16 @@ Comprobar: `gh run list --limit 3`.
 
 ## 8. Decisiones técnicas clave (NO romper)
 
-1. **Resolución DNS Delegada a Pi-hole:** Debian no aloja servicio DNS. La resolucion de cualquier subdominio nuevo se delega al servidor Pi-hole mediante `address=/.empresa.local/<IP>`.
+1. **Resolución DNS Delegada (Pi-hole u homólogos):** Debian no aloja servicio DNS para mantener la máxima ligereza. La resolución de cualquier subdominio nuevo se delega preferentemente a un servidor Pi-hole mediante `address=/.empresa.local/<IP>`, o bien mediante router local (dnsmasq/MikroTik/pfSense), dominio público con comodín o archivo hosts.
 2. **Subdominios dinámicos sin reinicios:** Apache utiliza `VirtualDocumentRoot /var/www/%1/public_html`. Si el directorio no existe, un `RewriteCond` deriva limpiamente a `/not_found.php` entregando HTTP 404 amigable.
 3. **Dominio Base Desacoplado:** El dominio base (`https://empresa.local`) sirve exclusivamente el panel de bienvenida y salud (`/var/www/_dashboard`), aislando la produccion (`prod.empresa.local`).
 4. **phpMyAdmin / almacenamiento:** `dbconfig-install false` seguido de configuracion determinista de `pmadb`: importa `/usr/share/phpmyadmin/sql/create_tables.sql` (19 tablas `pma__*`), crea usuario `pma@localhost` y genera `/etc/phpmyadmin/config-db.php`.
 5. **Twig ≥ 3.21:** Parche idempotente en `/usr/share/php/PhpMyAdmin/Twig/Extensions/TokenParser/TransTokenParser.php` (`getExpressionParser()->parseExpression()` -> `parseExpression()`) y limpieza de cache Twig.
 6. **Paridad Hostinger:** Inclusion de Redis Server (`redis-server`), extension `php-redis` y binario global de Composer 2.x en `/usr/local/bin/composer`.
 7. **Recurso Samba Unificado `[proyectos]`:** Mapeo unico a `/var/www` con permisos SGID `2775`, `force group = www-data`, y directiva `veto files` para ocultar `.git`, `.env`, `.htaccess`, `_dashboard` y llaves `.key`.
-8. **Scripts Windows 1-Clic (.bat):** `configurar-cliente.bat` instala la CA raiz para evitar alertas SSL en navegadores; `configurar-desarrollador.bat` anade `EnableLinkedConnections`, mapea la unidad `Z:\` a `\\IP\proyectos` y configura el alias SSH `web`.
+8. **Scripts Windows 1-Clic (.bat / .ps1):** `configurar-cliente.bat` instala la CA raiz para evitar alertas SSL en navegadores; `configurar-desarrollador.bat` y `.ps1` anaden `EnableLinkedConnections`, mapean la unidad `Z:\` a `\\IP\proyectos` y configuran el alias SSH `web`.
 9. **Usuario de instalación del SO:** El primer UID ≥ 1000 con shell se anade a `sudo` por defecto.
+10. **Aprovisionamiento Automático DB:** `srvctl project db <nombre>` genera la base de datos MariaDB, usuario dedicado y archivo `.env` en `public_html`.
 
 ## 9. Seguridad
 
