@@ -1,0 +1,6 @@
+# Normalizar finales de linea a LF (imprescindible para scripts que corren en Linux)
+* text=auto eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.yml text eol=lf
