@@ -21,14 +21,16 @@ generate_ssl() {
     mkdir -p "$ssl_dir"
     cd "$ssl_dir"
 
-    if [ ! -f rootCA.key ]; then
-        openssl genrsa -out rootCA.key 4096 2>/dev/null
-        openssl req -x509 -new -nodes -key rootCA.key -sha256 -days 3650 \
-          -subj "/C=MX/ST=Hidalgo/L=Pachuca/O=Infraestructura/CN=Local-RootCA" \
-          -out rootCA.crt 2>/dev/null
-    fi
-
-    openssl genrsa -out webserver.key 2048 2>/dev/null
+    (
+        umask 077
+        if [ ! -f rootCA.key ]; then
+            openssl genrsa -out rootCA.key 4096 2>/dev/null
+            openssl req -x509 -new -nodes -key rootCA.key -sha256 -days 3650 \
+              -subj "/C=MX/ST=Hidalgo/L=Pachuca/O=Infraestructura/CN=Local-RootCA" \
+              -out rootCA.crt 2>/dev/null
+        fi
+        openssl genrsa -out webserver.key 2048 2>/dev/null
+    )
 
     cat > openssl_san.cnf <<EOF
 [req]
@@ -56,7 +58,7 @@ EOF
     openssl x509 -req -in webserver.csr -CA rootCA.crt -CAkey rootCA.key -CAcreateserial \
       -out webserver.crt -days 1095 -sha256 -extfile openssl_san.cnf -extensions req_ext 2>/dev/null
 
-    chmod 600 "${ssl_dir}"/*.key
+    chmod 400 "${ssl_dir}"/*.key
     chmod 644 "${ssl_dir}"/*.crt
 
     # Publicar copia en downloads del dashboard
