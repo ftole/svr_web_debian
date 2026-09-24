@@ -87,16 +87,27 @@ cmd_status() {
     echo "======================================================================"
     echo "           ESTADO DE SALUD DEL SERVIDOR - $(date '+%Y-%m-%d %H:%M:%S')"
     echo "======================================================================"
+    echo " - IP Servidor:       ${SERVER_IP}"
+    echo " - Dominio Base:      *.${BASE_DOMAIN}"
+    echo " - Recurso Samba:     \\\\${SERVER_IP}\\proyectos"
+    echo " - Dashboard Central: https://${BASE_DOMAIN}"
+    echo ""
+    echo "--- Metricas del Sistema ---"
+    local ram_info
+    ram_info=$(free -h 2>/dev/null | awk '/Mem:/ {print $3 "/" $2}')
+    echo " - Uso de RAM:        ${ram_info:-N/D}"
+    local disk_info
+    disk_info=$(df -h /var/www 2>/dev/null | awk 'NR==2 {print $3 "/" $2 " (" $5 " usado)"}')
+    echo " - Espacio en disco:  ${disk_info:-N/D}"
+    echo ""
+    echo "--- Estado de Servicios ---"
     for srv in apache2 "php${PHP_VER}-fpm" mariadb redis-server smbd ufw fail2ban; do
         if systemctl is-active --quiet "$srv" 2>/dev/null; then
-            printf " [OK]  Servicio %-20s: Activo\n" "$srv"
+            printf " [OK]   Servicio %-20s: Activo\n" "$srv"
         else
             printf " [FAIL] Servicio %-19s: Inactivo\n" "$srv"
         fi
     done
-    echo ""
-    echo "Recurso Samba: \\\\${SERVER_IP}\\proyectos"
-    echo "Portal Central: https://${BASE_DOMAIN}"
 }
 
 cmd_verify() {
@@ -231,7 +242,7 @@ cmd_verify() {
     # --- Respaldos -----------------------------------------------------------------
     check "Backup: script ejecutable"              test -x /opt/scripts/backup-daily.sh
     check "Backup: cron instalado"                 test -f /etc/cron.d/web-daily-backup
-    check "Backup: snapshot diario generado"       test -d /backup/snapshots/daily.0
+    check "Backup: snapshot diario generado"       bash -c "test -d /var/backups/srvctl/snapshots/daily.0 || test -d /backup/snapshots/daily.0"
 
     # --- Resultados ----------------------------------------------------------------
     echo ""
@@ -312,6 +323,63 @@ cmd_project_list() {
     done
 }
 
+cmd_project_db() {
+    validate_root
+    load_config
+    local name="$1"
+    [ -n "$name" ] || die "Debes especificar el nombre del proyecto. Ej: srvctl project db tienda"
+
+    if ! validate_subdomain "$name"; then
+        die "Nombre de proyecto invalido. Usa solo letras minusculas, numeros y guiones."
+    fi
+
+    local db_name="${name//-/_}_db"
+    local db_user="${name//-/_}_usr"
+    db_user="${db_user:0:32}"
+    local db_pass
+    db_pass="$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)"
+
+    log "[Base de Datos] Creando base de datos ${db_name} y usuario ${db_user}..."
+    mariadb -e "CREATE DATABASE IF NOT EXISTS \`${db_name}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+    mariadb -e "CREATE USER IF NOT EXISTS '${db_user}'@'localhost' IDENTIFIED BY '${db_pass}';"
+    mariadb -e "ALTER USER '${db_user}'@'localhost' IDENTIFIED BY '${db_pass}';"
+    mariadb -e "GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${db_user}'@'localhost';"
+    mariadb -e "CREATE USER IF NOT EXISTS '${db_user}'@'127.0.0.1' IDENTIFIED BY '${db_pass}';"
+    mariadb -e "ALTER USER '${db_user}'@'127.0.0.1' IDENTIFIED BY '${db_pass}';"
+    mariadb -e "GRANT ALL PRIVILEGES ON \`${db_name}\`.* TO '${db_user}'@'127.0.0.1';"
+    mariadb -e "FLUSH PRIVILEGES;"
+
+    local pubdir="/var/www/${name}/public_html"
+    if [ -d "${pubdir}" ]; then
+        local env_file="${pubdir}/.env"
+        if [ ! -f "${env_file}" ]; then
+            cat > "${env_file}" <<EOF
+# Configuracion de base de datos creada por srvctl
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=${db_name}
+DB_USERNAME=${db_user}
+DB_PASSWORD=${db_pass}
+EOF
+            chown "${ADMIN_USER}":www-data "${env_file}"
+            chmod 660 "${env_file}"
+            log "[Base de Datos] Archivo de entorno depositado en ${env_file}"
+        fi
+    fi
+
+    echo "======================================================================"
+    echo "         BASE DE DATOS CONFIGURADA CON EXITO                          "
+    echo "======================================================================"
+    echo " - Host:        127.0.0.1 (o localhost)"
+    echo " - Puerto:      3306"
+    echo " - Base Datos:  ${db_name}"
+    echo " - Usuario:     ${db_user}"
+    echo " - Contrasena:  ${db_pass}"
+    echo " - phpMyAdmin:  https://${DB_FQDN}"
+    echo "======================================================================"
+}
+
 cmd_reset() {
     validate_root
     log "[Reset] Restaurando servidor al estado base limpio..."
@@ -327,7 +395,7 @@ cmd_reset() {
     apt-get clean >/dev/null 2>&1 || true
 
     rm -rf /var/www/prod /var/www/stg /var/www/_dashboard
-    rm -rf /etc/apache2 /etc/php /etc/mysql /etc/samba /var/lib/mysql /etc/phpmyadmin /etc/ssl/localcerts /backup /opt/scripts
+    rm -rf /etc/apache2 /etc/php /etc/mysql /etc/samba /var/lib/mysql /etc/phpmyadmin /etc/ssl/localcerts /backup /var/backups/srvctl /opt/scripts
     rm -f /var/log/backup-daily.log /var/log/sudo.log /etc/cron.d/web-daily-backup /etc/srvctl.conf /etc/asistente_servidor.conf
 
     mkdir -p /var/www/html
@@ -348,16 +416,17 @@ show_tui() {
 
     local choice
     choice=$(whiptail --title "Gestor de Servidor Web Debian 13 (srvctl)" \
-        --menu "Selecciona una accion para continuar:" 19 70 9 \
+        --menu "Selecciona una accion para continuar:" 20 72 10 \
         "1" "Desplegar Servidor (Instalacion Guiada)" \
         "2" "Estado de Salud y Monitoreo Basico" \
         "3" "Diagnostico y Auto-verificacion (Suite 40 Puntos)" \
-        "4" "Crear Nuevo Proyecto Web" \
-        "5" "Listar Proyectos Web Activos" \
-        "6" "Ejecutar Respaldo Inmediato" \
-        "7" "Listar Respaldos y Snapshots" \
-        "8" "Resetear / Limpiar Servidor" \
-        "9" "Salir" 3>&1 1>&2 2>&3)
+        "4" "Crear Nuevo Proyecto Web (Carpeta + Git)" \
+        "5" "Crear Base de Datos para Proyecto (MariaDB + .env)" \
+        "6" "Listar Proyectos Web Activos" \
+        "7" "Ejecutar Respaldo Inmediato" \
+        "8" "Listar Respaldos y Snapshots" \
+        "9" "Resetear / Limpiar Servidor" \
+        "10" "Salir" 3>&1 1>&2 2>&3)
 
     case "$choice" in
         1) cmd_deploy ;;
@@ -371,10 +440,18 @@ show_tui() {
                 read -rp "Presiona Enter para continuar..."
             fi
             ;;
-        5) cmd_project_list; read -rp "Presiona Enter para continuar..." ;;
-        6) bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" setup; read -rp "Presiona Enter..." ;;
-        7) bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" list; read -rp "Presiona Enter..." ;;
-        8)
+        5)
+            local db_pname
+            db_pname=$(whiptail --inputbox "Ingresa el nombre del proyecto para su Base de Datos (ej. tienda):" 10 50 3>&1 1>&2 2>&3)
+            if [ -n "$db_pname" ]; then
+                cmd_project_db "$db_pname"
+                read -rp "Presiona Enter para continuar..."
+            fi
+            ;;
+        6) cmd_project_list; read -rp "Presiona Enter para continuar..." ;;
+        7) bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" setup; read -rp "Presiona Enter..." ;;
+        8) bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" list; read -rp "Presiona Enter..." ;;
+        9)
             if (whiptail --title "Confirmar Reset" --yesno "¿Estas seguro de purgar todos los paquetes y datos?" 10 60); then
                 cmd_reset
                 read -rp "Presiona Enter para continuar..."
@@ -393,8 +470,9 @@ case "$subcmd" in
     project)
         case "${2:-}" in
             create) cmd_project_create "${3:-}" ;;
+            db)     cmd_project_db "${3:-}" ;;
             list)   cmd_project_list ;;
-            *) die "Uso: srvctl project [create <nombre>|list]" ;;
+            *) die "Uso: srvctl project [create <nombre>|db <nombre>|list]" ;;
         esac
         ;;
     backup)
