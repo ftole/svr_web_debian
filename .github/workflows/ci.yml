@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   lint:
-    name: Lint y sintaxis
+    name: Lint, Sintaxis y Pruebas Unitarias
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -20,17 +20,21 @@ jobs:
 
       - name: Comprobar sintaxis de scripts (bash -n)
         run: |
-          find . -type f -name "*.sh" -print0 | while IFS= read -r -d '' f; do
+          find . -type f \( -name "*.sh" -o -path "./bin/*" \) -print0 | while IFS= read -r -d '' f; do
             echo "::group::bash -n $f"
             bash -n "$f"
             echo "::endgroup::"
           done
 
-      - name: ShellCheck (solo errores)
+      - name: ShellCheck (Advertencias y Errores)
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq shellcheck
-          find . -type f -name "*.sh" -print0 | xargs -0 shellcheck -S error
+          find . -type f \( -name "*.sh" -o -path "./bin/*" \) -print0 | xargs -0 shellcheck -S warning
+
+      - name: Ejecutar Suite de Pruebas de Validacion (Chaos Testing)
+        run: |
+          bash tests/test_validator.sh
 
       - name: Lint del workflow (actionlint)
         run: |
