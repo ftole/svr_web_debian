@@ -629,6 +629,25 @@ if (Test-Path \$certSrc) {
 } else {
     Write-Host "[WARN] No se pudo leer \$certSrc. Instalalo manualmente." -ForegroundColor Yellow
 }
+
+# 5. Llave SSH y alias 'web' para gestionar Git en el servidor
+if (!(Test-Path "\$env:USERPROFILE\.ssh\id_ed25519_web")) {
+    ssh-keygen -t ed25519 -f "\$env:USERPROFILE\.ssh\id_ed25519_web" -N '""'
+}
+# (pedira la contrasena del administrador una vez)
+Get-Content "\$env:USERPROFILE\.ssh\id_ed25519_web.pub" | ssh \$AdminUser@\$ServerIP "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+
+\$sshConfig = "\$env:USERPROFILE\.ssh\config"
+\$configEntry = @"
+
+Host web
+    HostName \$ServerIP
+    User \$AdminUser
+    IdentityFile ~/.ssh/id_ed25519_web
+    ServerAliveInterval 60
+"@
+Add-Content -Path \$sshConfig -Value \$configEntry
+Write-Host "[OK] Alias SSH listo. Gestiona Git con: ssh web" -ForegroundColor Green
 # NOTA: si las unidades no aparecen en el Explorador, reinicia Windows una vez
 #       (EnableLinkedConnections ya quedo aplicado y los mapeos son persistentes).
 ==============================================================================
