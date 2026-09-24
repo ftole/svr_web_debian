@@ -4,10 +4,13 @@ Este archivo permite continuar el desarrollo en cualquier equipo. Léelo antes d
 
 ## 1. Qué es
 
-Asistente (wizard) que despliega una arquitectura web nativa sobre **Debian 13 (Trixie)**:
-Apache 2.4 (MPM Event) + PHP 8.4 FPM + MariaDB 11.8 + phpMyAdmin por subdominio, **SSL comodín interno**,
-Samba SMBv3, UFW + Fail2ban y respaldos rotativos de 7 días.
+Plataforma de automatización y administración para servidores web nativos sobre **Debian 13 (Trixie)**:
+Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.8 + phpMyAdmin por subdominio,
+**SSL comodín interno**, Samba SMBv3 (recurso maestro `[proyectos]`), UFW + Fail2ban y respaldos rotativos de 7 días.
 
+- **CLI principal:** `srvctl` instalado en `/usr/local/bin/srvctl` (orquestación modular con TUI interactiva y subcomandos).
+- **Ruteo web:** Dominio base para Dashboard de bienvenida y salud (`_dashboard`). Subdominios dinámicos sin configuración para nuevos proyectos vía `mod_vhost_alias`.
+- **Resolución DNS:** Delegada a servidor **Pi-hole** mediante regla comodín (`address=/.empresa.local/<IP>`). Debian **no** ejecuta servicios DNS locales.
 - **Repositorio:** `https://github.com/ftole/svr_web_debian` (rama `main`, **público**).
 - **Titular/licencia:** propietaria — `José Francisco Toledo` <cisco_red@outlook.com> (ver `LICENSE`).
 - **Idioma:** documentación, mensajes de commit y comentarios en **español**. No usar emojis salvo que se pida.
@@ -16,33 +19,38 @@ Samba SMBv3, UFW + Fail2ban y respaldos rotativos de 7 días.
 
 | Archivo / Directorio | Rol |
 | :--- | :--- |
-| `install.sh` | Bootstrap del `curl`: descarga el repositorio completo a `/root/svr_web_debian` y lanza el asistente. Prompts por `/dev/tty`. |
-| `asistente_servidor.sh` | Wizard de despliegue (orquestador modular, pre-chequeos, logging, auto-verificación). |
-| `verificar_servidor.sh` | Auto-test del stack (40 comprobaciones PASS/FAIL; incluye login real a phpMyAdmin). |
-| `limpiar_servidor.sh` | Reset a estado base limpio (orquestador que ejecuta la suite de `scripts/cleanup/`). |
-| `scripts/common.sh` | Utilidades y funciones comunes (logging, validación de root, detección y carga de configuración). |
-| `scripts/deploy/` | Módulos de despliegue reutilizables (01_energia hasta 13_respaldos_cron). |
-| `scripts/cleanup/` | Módulos de limpieza y rollback reutilizables (01_detener_servicios hasta 05_eliminar_usuarios). |
-| `manual_maestro_..._13.md` | Manual técnico. **Referencia histórica** parcialmente supersedida (ver nota en su §3). |
-| `README.md` | Manual principal y ficha del repo. |
-| `AGENTS.md` | Este archivo. |
+| `bin/srvctl` | Binario ejecutable principal. CLI interactivo con Whiptail y subcomandos de operacion. |
+| `core/logger.sh` | Sistema central de logging a consola y `/var/log/srvctl.log`. |
+| `core/validator.sh` | Validadores estrictos de IPv4 (rango 0-255), dominios FQDN, subdominios, disco y entorno. |
+| `core/config.sh` | Carga y persistencia centralizada de configuracion en `/etc/srvctl.conf`. |
+| `modules/system/` | Optimizaciones de sistema operativo (politicas anti-suspension, desactivacion de IPv6 en kernel). |
+| `modules/security/` | Cortafuegos UFW, jaula SSH en Fail2ban, hardening de OpenSSH y auditoria en `/var/log/sudo.log`. |
+| `modules/stack/` | Pila de software (paquetes base, PHP 8.4 FPM, Composer 2.x, Redis, MariaDB 11.8, phpMyAdmin 5.x). |
+| `modules/web/` | Autoridad CA raiz y SSL comodin SAN, VirtualHosts de Apache (`mod_vhost_alias`) y Dashboard de salud. |
+| `modules/share/` | Servidor Samba SMBv3 con recurso unificado `[proyectos]` sobre `/var/www`. |
+| `modules/backup/` | Sistema de respaldos diarios por snapshots rotativos de 7 dias y volcados SQL. |
+| `templates/dashboard/` | Codigo fuente del panel de salud y monitor del dominio base (`index.php`, `not_found.php`). |
+| `templates/windows/` | Scripts de aprovisionamiento en 1 clic para clientes (`configurar-cliente.bat`, `configurar-desarrollador.bat`). |
+| `tests/test_validator.sh` | Suite de pruebas unitarias automatizadas y chaos testing de validacion de entradas. |
+| `install.sh` | Bootstrap de instalacion via `curl`: descarga a `/opt/srvctl` y enlaza el CLI global. |
+| `asistente_servidor.sh` | Wrapper de compatibilidad hacia `srvctl deploy`. |
+| `limpiar_servidor.sh` | Wrapper de compatibilidad hacia `srvctl reset`. |
+| `verificar_servidor.sh` | Suite de verificacion del estado del stack (diagnostico integral de servicios, HTTP, SSL y Samba). |
+| `README.md` | Manual principal y documentacion de arquitectura. |
+| `AGENTS.md` | Este archivo de contexto y directrices tecnicas. |
 | `LICENSE` | Licencia propietaria. |
-| `.github/workflows/ci.yml` | CI: `bash -n` + `shellcheck -S error` + `actionlint` (recursivo para todos los `.sh`). |
-| `.gitattributes` / `.gitignore` | LF obligatorio / exclusión de secretos. |
+| `.github/workflows/ci.yml` | Integracion continua: `bash -n` + `shellcheck -S warning` + pruebas unitarias + `actionlint`. |
+| `.gitattributes` / `.gitignore` | Forzado de finales de linea LF / exclusion de secretos y credenciales. |
 
 ## 3. Reglas de trabajo (obligatorias)
 
 1. **Commits atómicos: un archivo por commit.** Mensajes en español con prefijo tipo Conventional Commits
    (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `ci:`, `chore:`). No mezclar varios archivos en un commit.
-2. **Finales de línea LF** siempre (`.gitattributes`: `* text=auto eol=lf`). Nunca CRLF en los `.sh`.
-3. **Nunca** commitear `debian_pruebas.txt` ni credenciales (está en `.gitignore`). Si añades secretos, ignóralos.
+2. **Finales de línea LF** siempre (`.gitattributes`: `* text=auto eol=lf`). Nunca CRLF en los `.sh` o ejecutables.
+3. **Nunca** commitear `debian_pruebas.txt` ni credenciales (esta en `.gitignore`). Si anades secretos, ignoralos.
 4. **No añadir comentarios** al código salvo que aporten valor real; el código de shell se documenta con bloques claros.
 5. **CI en verde** es requisito antes de dar por terminado un cambio (ver §5).
-6. Antes de commitear, validar sintaxis y shellcheck (ver §5).
-7. Al editar el **bloque PowerShell** dentro del heredoc `RESGUARDO_EOF` de `asistente_servidor.sh`:
-   - Escapa las variables de PowerShell como `\$var` (bash las convierte en `$var`).
-   - Usa `${VAR}` (sin escapar) para que bash expanda las variables del asistente.
-   - Valida generando el bloque real (ver §5) además de `bash -n`/`shellcheck`.
+6. Antes de commitear, validar sintaxis con `bash -n`, `shellcheck -S warning` y ejecutar `tests/test_validator.sh`.
 
 ## 4. Valores por defecto del despliegue
 
@@ -54,73 +62,63 @@ Samba SMBv3, UFW + Fail2ban y respaldos rotativos de 7 días.
 | `STG_SUB` | `stg` |
 | `DB_SUB` | `webdev` |
 | `ADMIN_USER` | `webadmin` |
-| `ADMIN_PASS` | `Temp123#` (solo demo; **documentar que se cambie**) |
+| `ADMIN_PASS` | `Temp123#` (solo demo; documentar que se cambie) |
 
-Subdominios: `prod.<dominio>`, `stg.<dominio>`, `webdev.<dominio>`. Directorios: `/var/www/prod`, `/var/www/stg`.
+- Dominio base: `https://<dominio>` -> Dashboard de salud y descargas (`/var/www/_dashboard`).
+- Subdominios estandar: `prod.<dominio>`, `stg.<dominio>`, `webdev.<dominio>`.
+- Subdominios dinamicos: `*.<dominio>` -> `/var/www/<nombre>/public_html/`.
 
 ## 5. Comandos de trabajo
 
-**Validación local (requiere Linux con bash y shellcheck):**
+**Validación local (requiere Linux o WSL con bash y shellcheck):**
 ```bash
-bash -n ./*.sh
-shellcheck -S error ./*.sh
+bash -n *.sh bin/* core/*.sh modules/*/*.sh tests/*.sh
+shellcheck -S warning *.sh bin/* core/*.sh modules/*/*.sh tests/*.sh
+bash tests/test_validator.sh
 ```
 
-**Generar y revisar el bloque de Windows del asistente:**
-```bash
-sed -n '/cat <<RESGUARDO_EOF/,/^RESGUARDO_EOF/p' asistente_servidor.sh
-# (o construir un pequeño wrapper que defina las variables y ejecute el bloque)
-```
-
-**Despliegue (equipo de pruebas):**
+**Despliegue rápido:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ftole/svr_web_debian/main/install.sh | sudo bash
 ```
 
-**Verificación / limpieza (en el servidor, como root):**
+**Diagnóstico y verificación (en el servidor):**
 ```bash
-sudo bash /root/verificar_servidor.sh
-sudo bash /root/limpiar_servidor.sh
+sudo srvctl status
+sudo bash /opt/srvctl/verificar_servidor.sh
 ```
 
 ## 6. Entorno de pruebas
 
 - Equipo real de pruebas: **Debian 13 en `10.1.0.4`**.
-- Acceso SSH: usuario **`web`** (tiene llave; también password en `debian_pruebas.txt`, que **no se sube**).
+- Acceso SSH: usuario **`web`** (tiene llave; credenciales reservadas en local).
 - `web` pertenece al grupo `sudo`. Para comandos no interactivos: `echo '<pass>' | sudo -S -p '' <cmd>`.
-- Tras un `push`, `raw.githubusercontent.com` puede tardar ~5 min en servir la versión nueva (caché CDN).
-- El asistente es **idempotente**: se puede re-ejecutar; para partir de cero, `limpiar_servidor.sh` y desplegar.
+- El sistema es completamente **idempotente** y reversible via `srvctl reset`.
 
-## 7. CI
+## 7. CI (Integración Continua)
 
 `.github/workflows/ci.yml` corre en cada push/PR a `main`:
-`bash -n ./*.sh` + `shellcheck -S error ./*.sh` + `actionlint` (con `-shellcheck=`, su shellcheck interno está desactivado).
+1. `bash -n` recursivo sobre todos los scripts y binarios.
+2. `shellcheck -S warning` sobre todos los componentes.
+3. Ejecucion de la suite de pruebas unitarias (`tests/test_validator.sh`).
+4. `actionlint` para validar la sintaxis de GitHub Actions.
 Comprobar: `gh run list --limit 3`.
 
 ## 8. Decisiones técnicas clave (NO romper)
 
-1. **phpMyAdmin / almacenamiento:** el asistente hace `dbconfig-install false` (tolerante) **y luego** configura
-   manualmente el `pmadb`: importa `/usr/share/phpmyadmin/sql/create_tables.sql` (19 tablas `pma__*`), crea el
-   usuario de control `pma@localhost` con `SELECT/INSERT/UPDATE/DELETE` y escribe `/etc/phpmyadmin/config-db.php`
-   con `$dbuser/$dbpass`. Sin esto aparece *«El almacenamiento de configuración phpMyAdmin no está completamente configurado»*.
-2. **Twig ≥ 3.21:** parche no invasivo en `/usr/share/php/PhpMyAdmin/Twig/Extensions/TokenParser/TransTokenParser.php`
-   (`getExpressionParser()->parseExpression()` → `parseExpression()`), luego limpiar `/var/lib/phpmyadmin/tmp/twig/*`.
-3. **Prompts con `curl | bash`:** `install.sh` redirige stdin a `/dev/tty` si existe; si no, modo no interactivo.
-4. **Bloque Windows** (generado por el asistente):
-   - `EnableLinkedConnections=1` (para ver unidades mapeadas como admin).
-   - Samba en **letras libres** (`Get-FreeDriveLetter`).
-   - Certificado raíz **por UNC** (`\\$ServerIP\prod\public_html\rootCA.crt`), no por letra de unidad.
-   - Alias SSH **`web`** (`~/.ssh/config`: `Host web` → `$AdminUser@$ServerIP`, llave `id_ed25519_web`).
-5. **Nombres genéricos:** producción es `prod` (no `izzi`).
-6. **Usuario de instalación del SO** (primer UID ≥ 1000 con shell) se agrega a `sudo` por defecto.
+1. **Resolución DNS Delegada a Pi-hole:** Debian no aloja servicio DNS. La resolucion de cualquier subdominio nuevo se delega al servidor Pi-hole mediante `address=/.empresa.local/<IP>`.
+2. **Subdominios dinámicos sin reinicios:** Apache utiliza `VirtualDocumentRoot /var/www/%1/public_html`. Si el directorio no existe, un `RewriteCond` deriva limpiamente a `/not_found.php` entregando HTTP 404 amigable.
+3. **Dominio Base Desacoplado:** El dominio base (`https://empresa.local`) sirve exclusivamente el panel de bienvenida y salud (`/var/www/_dashboard`), aislando la produccion (`prod.empresa.local`).
+4. **phpMyAdmin / almacenamiento:** `dbconfig-install false` seguido de configuracion determinista de `pmadb`: importa `/usr/share/phpmyadmin/sql/create_tables.sql` (19 tablas `pma__*`), crea usuario `pma@localhost` y genera `/etc/phpmyadmin/config-db.php`.
+5. **Twig ≥ 3.21:** Parche idempotente en `/usr/share/php/PhpMyAdmin/Twig/Extensions/TokenParser/TransTokenParser.php` (`getExpressionParser()->parseExpression()` -> `parseExpression()`) y limpieza de cache Twig.
+6. **Paridad Hostinger:** Inclusion de Redis Server (`redis-server`), extension `php-redis` y binario global de Composer 2.x en `/usr/local/bin/composer`.
+7. **Recurso Samba Unificado `[proyectos]`:** Mapeo unico a `/var/www` con permisos SGID `2775`, `force group = www-data`, y directiva `veto files` para ocultar `.git`, `.env`, `.htaccess`, `_dashboard` y llaves `.key`.
+8. **Scripts Windows 1-Clic (.bat):** `configurar-cliente.bat` instala la CA raiz para evitar alertas SSL en navegadores; `configurar-desarrollador.bat` anade `EnableLinkedConnections`, mapea la unidad `Z:\` a `\\IP\proyectos` y configura el alias SSH `web`.
+9. **Usuario de instalación del SO:** El primer UID ≥ 1000 con shell se anade a `sudo` por defecto.
 
 ## 9. Seguridad
 
-- Default `ADMIN_PASS=Temp123#` es solo demo: los docs deben advertir cambiarla.
-- `curl | bash` ejecuta código remoto: documentar la opción «descargar → revisar → ejecutar».
-- `debian_pruebas.txt` está en `.gitignore`; **nunca** subirlo.
-- Credenciales runtime en `/etc/asistente_servidor.conf` (modo `600`, solo root).
-
-## 10. Pendientes / ideas
-
-- Posible endurecimiento: `NoNewPrivileges`/`ProtectSystem` para phpMyAdmin, rotación de logs, tests en contenedor Debian.
+- Default `ADMIN_PASS=Temp123#` es solo para demo: advertir cambiarla.
+- Credenciales operativas guardadas en `/etc/srvctl.conf` y `/etc/asistente_servidor.conf` con permisos `600` (solo root).
+- Auditoria de comandos con privilegios en `/var/log/sudo.log`.
+- `debian_pruebas.txt` esta en `.gitignore`; nunca subirlo.
