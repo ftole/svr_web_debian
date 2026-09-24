@@ -48,7 +48,9 @@ load_config() {
 save_config() {
     validate_root
     mkdir -p "$(dirname "$CONF_FILE")"
-    cat > "$CONF_FILE" <<EOF
+    (
+        umask 077
+        cat > "$CONF_FILE" <<EOF
 # Configuracion central de srvctl
 SERVER_IP='${SERVER_IP}'
 BASE_DOMAIN='${BASE_DOMAIN}'
@@ -62,9 +64,5 @@ ADMIN_USER='${ADMIN_USER}'
 ADMIN_PASS='${ADMIN_PASS}'
 PHP_VER='${PHP_VER}'
 EOF
-    chmod 600 "$CONF_FILE"
-
-    # Enlace o duplicado para retrocompatibilidad
-    cp -f "$CONF_FILE" "$LEGACY_CONF"
-    chmod 600 "$LEGACY_CONF"
+    )
 }
