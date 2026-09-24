@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint y sintaxis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Comprobar sintaxis de scripts (bash -n)
+        run: |
+          shopt -s nullglob
+          for f in *.sh; do
+            echo "::group::bash -n $f"
+            bash -n "$f"
+            echo "::endgroup::"
+          done
+
+      - name: ShellCheck (solo errores)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          shellcheck -S error *.sh
+
+      - name: Lint del workflow (actionlint)
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          ./actionlint -color -oneline
