@@ -253,7 +253,9 @@ if (is_dir($wwwDir)) {
             </p>
             <div class="actions-bar">
                 <a href="https://webdev.<?= htmlspecialchars($baseDomain) ?>" target="_blank" class="btn">Abrir phpMyAdmin</a>
-                <a href="/downloads/rootCA.crt" download class="btn btn-outline">Descargar Certificado SSL</a>
+                <a href="/downloads/rootCA.crt" download class="btn btn-outline">Certificado SSL</a>
+                <a href="/downloads/configurar-desarrollador.bat" download class="btn btn-outline">Script Dev (.bat)</a>
+                <a href="/downloads/configurar-desarrollador.ps1" download class="btn btn-outline">Script Dev (.ps1)</a>
             </div>
         </div>
     </div>
