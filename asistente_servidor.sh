@@ -76,7 +76,7 @@ DETECTED_IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')
 
 ask SERVER_IP       "[?] Direccion IP del servidor"             "$DETECTED_IP"
 ask BASE_DOMAIN     "[?] Dominio Base"                          "empresa.local"
-ask PROD_SUB        "[?] Subdominio para Produccion"            "izzi"
+ask PROD_SUB        "[?] Subdominio para Produccion"            "prod"
 PROD_FQDN="${PROD_SUB}.${BASE_DOMAIN}"
 ask STG_SUB         "[?] Subdominio para Pruebas / Staging"     "stg"
 STG_FQDN="${STG_SUB}.${BASE_DOMAIN}"
@@ -263,14 +263,14 @@ systemctl enable --now fail2ban >/dev/null
 systemctl restart fail2ban
 
 log "[8/11] Estructura web, Git y permisos colaborativos..."
-mkdir -p /var/www/izzi/public_html
+mkdir -p /var/www/prod/public_html
 mkdir -p /var/www/stg/public_html
 
-cat << INDEX_PROD_EOF > /var/www/izzi/public_html/index.php
+cat << INDEX_PROD_EOF > /var/www/prod/public_html/index.php
 <?php header('Content-Type: text/html; charset=UTF-8'); ?>
 <!DOCTYPE html><html><head><meta charset="UTF-8"><title>Produccion - ${PROD_FQDN}</title>
 <style>body{font-family:sans-serif;margin:40px;background:#f5f2e9;color:#233446}.card{background:#fff;padding:25px;border-radius:8px;border-left:6px solid #aa8a45;box-shadow:0 2px 5px rgba(0,0,0,0.1)}h1{margin-top:0}.badge{background:#aa8a45;color:#fff;padding:4px 8px;border-radius:4px;font-weight:bold}</style></head>
-<body><div class="card"><h1>Servidor Web Nativo - <span class="badge">PRODUCCION (IZZI)</span></h1><p><strong>Dominio:</strong> ${PROD_FQDN}</p><p><strong>PHP:</strong> <?= phpversion(); ?></p><p><strong>DocumentRoot:</strong> <?= __DIR__; ?></p></div></body></html>
+<body><div class="card"><h1>Servidor Web Nativo - <span class="badge">PRODUCCION (PROD)</span></h1><p><strong>Dominio:</strong> ${PROD_FQDN}</p><p><strong>PHP:</strong> <?= phpversion(); ?></p><p><strong>DocumentRoot:</strong> <?= __DIR__; ?></p></div></body></html>
 INDEX_PROD_EOF
 
 cat << INDEX_STG_EOF > /var/www/stg/public_html/index.php
@@ -280,14 +280,14 @@ cat << INDEX_STG_EOF > /var/www/stg/public_html/index.php
 <body><div class="card"><h1>Servidor Web Nativo - <span class="badge">STAGING (PRUEBAS)</span></h1><p><strong>Dominio:</strong> ${STG_FQDN}</p><p><strong>PHP:</strong> <?= phpversion(); ?></p><p><strong>DocumentRoot:</strong> <?= __DIR__; ?></p></div></body></html>
 INDEX_STG_EOF
 
-chown -R "${ADMIN_USER}":www-data /var/www/izzi /var/www/stg
-find /var/www/izzi /var/www/stg -type d -exec chmod 2775 {} \;
-find /var/www/izzi /var/www/stg -type f -exec chmod 0664 {} \;
+chown -R "${ADMIN_USER}":www-data /var/www/prod /var/www/stg
+find /var/www/prod /var/www/stg -type d -exec chmod 2775 {} \;
+find /var/www/prod /var/www/stg -type f -exec chmod 0664 {} \;
 
-git config --system --add safe.directory /var/www/izzi/public_html
+git config --system --add safe.directory /var/www/prod/public_html
 git config --system --add safe.directory /var/www/stg/public_html
 
-for pair in "izzi:${PROD_FQDN}" "stg:${STG_FQDN}"; do
+for pair in "prod:${PROD_FQDN}" "stg:${STG_FQDN}"; do
     dir="${pair%%:*}"; fqdn="${pair#*:}"
     cd "/var/www/${dir}/public_html"
     if [ ! -d .git ]; then
@@ -340,8 +340,8 @@ openssl x509 -req -in webserver.csr -CA rootCA.crt -CAkey rootCA.key -CAcreatese
 chmod 600 /etc/ssl/localcerts/*.key
 chmod 644 /etc/ssl/localcerts/*.crt
 
-cp /etc/ssl/localcerts/rootCA.crt /var/www/izzi/public_html/rootCA.crt
-chown "${ADMIN_USER}":www-data /var/www/izzi/public_html/rootCA.crt
+cp /etc/ssl/localcerts/rootCA.crt /var/www/prod/public_html/rootCA.crt
+chown "${ADMIN_USER}":www-data /var/www/prod/public_html/rootCA.crt
 
 log "[10/11] Configurando Apache 2.4 con perfiles VirtualHosts..."
 a2enmod actions fcgid alias proxy_fcgi rewrite headers ssl >/dev/null
@@ -362,11 +362,11 @@ Header always set X-Frame-Options "SAMEORIGIN"
 SEC_CONF
 a2enconf security-hardening >/dev/null
 
-cat > /etc/apache2/sites-available/01-izzi.conf <<VH_PROD
+cat > /etc/apache2/sites-available/01-prod.conf <<VH_PROD
 <VirtualHost *:80>
     ServerName ${PROD_FQDN}
     ServerAlias ${BASE_DOMAIN} localhost
-    DocumentRoot /var/www/izzi/public_html
+    DocumentRoot /var/www/prod/public_html
     RewriteEngine On
     RewriteCond %{HTTPS} off
     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
@@ -375,11 +375,11 @@ cat > /etc/apache2/sites-available/01-izzi.conf <<VH_PROD
 <VirtualHost *:443>
     ServerName ${PROD_FQDN}
     ServerAlias ${BASE_DOMAIN} localhost
-    DocumentRoot /var/www/izzi/public_html
+    DocumentRoot /var/www/prod/public_html
     SSLEngine on
     SSLCertificateFile /etc/ssl/localcerts/webserver.crt
     SSLCertificateKeyFile /etc/ssl/localcerts/webserver.key
-    <Directory /var/www/izzi/public_html>
+    <Directory /var/www/prod/public_html>
         Options Indexes FollowSymLinks
         AllowOverride All
         Require all granted
@@ -387,8 +387,8 @@ cat > /etc/apache2/sites-available/01-izzi.conf <<VH_PROD
     <FilesMatch \.php$>
         SetHandler "proxy:unix:/run/php/php${PHP_VER}-fpm.sock|fcgi://localhost"
     </FilesMatch>
-    ErrorLog /var/log/apache2/izzi_error.log
-    CustomLog /var/log/apache2/izzi_access.log combined
+    ErrorLog /var/log/apache2/prod_error.log
+    CustomLog /var/log/apache2/prod_access.log combined
 </VirtualHost>
 VH_PROD
 
@@ -449,7 +449,7 @@ cat > /etc/apache2/sites-available/03-webdev.conf <<VH_PMA
 VH_PMA
 
 a2dissite 000-default.conf >/dev/null 2>&1 || true
-a2ensite 01-izzi.conf 02-stg.conf 03-webdev.conf >/dev/null
+a2ensite 01-prod.conf 02-stg.conf 03-webdev.conf >/dev/null
 apache2ctl configtest
 systemctl restart apache2
 
@@ -481,9 +481,9 @@ cat > /etc/samba/smb.conf <<SAMBA_CONF
    log file = /var/log/samba/log.%m
    max log size = 1000
 
-[izzi]
-   comment = Entorno Produccion IZZI
-   path = /var/www/izzi
+[prod]
+   comment = Entorno Produccion PROD
+   path = /var/www/prod
    browseable = yes
    read only = no
    guest ok = no
@@ -563,12 +563,12 @@ cat <<RESGUARDO_EOF
  Certificado SSL:          ${BASE_DOMAIN}, *.${BASE_DOMAIN} e IP ${SERVER_IP}
 
  Direcciones Web (HTTPS):
-  - Produccion (izzi):     https://${PROD_FQDN} (o https://${SERVER_IP})
+  - Produccion (prod):     https://${PROD_FQDN} (o https://${SERVER_IP})
   - Pruebas (stg):         https://${STG_FQDN}
   - phpMyAdmin:            https://${DB_FQDN} (o https://${SERVER_IP}/phpmyadmin)
 
  Recursos Compartidos de Red (Samba):
-  - Produccion:            \\\\${SERVER_IP}\\izzi
+  - Produccion:            \\\\${SERVER_IP}\\prod
   - Pruebas:               \\\\${SERVER_IP}\\stg
 
  Credenciales de Administrador:
@@ -584,6 +584,8 @@ cat <<RESGUARDO_EOF
 
 \$ServerIP = "${SERVER_IP}"
 \$BaseDomain = "${BASE_DOMAIN}"
+\$AdminUser = "${ADMIN_USER}"
+\$AdminPass = '${ADMIN_PASS}'
 \$hostsPath = "\$env:windir\System32\drivers\etc\hosts"
 
 # 1. Registro de nombres DNS en archivo hosts
@@ -599,18 +601,29 @@ Add-Content -Path \$hostsPath -Value \$entries -Force
 Clear-DnsClientCache
 Write-Host "[OK] Dominios registrados en Windows y cache DNS purgada." -ForegroundColor Green
 
-# 2. Montaje de Unidades de Red Samba
-net use Z: \\\\\$ServerIP\\izzi /user:${ADMIN_USER} ${ADMIN_PASS} /persistent:yes
-net use Y: \\\\\$ServerIP\\stg  /user:${ADMIN_USER} ${ADMIN_PASS} /persistent:yes
-Write-Host "[OK] Unidades Z: (izzi) e Y: (stg) montadas correctamente." -ForegroundColor Green
+# 2. Montaje de Unidades de Red Samba en letras libres (auto)
+function Get-FreeDriveLetter {
+    \$used = @((Get-CimInstance Win32_LogicalDisk -ErrorAction SilentlyContinue).DeviceID -replace ':')
+    foreach (\$l in 'Z','Y','X','W','V','U','T','S','R','Q','P','O','N','M','L','K','J','I','H','G','F','E') {
+        if (\$used -notcontains \$l) { return "\${l}:" }
+    }
+    return \$null
+}
+\$driveProd = Get-FreeDriveLetter
+if (\$driveProd) { net use \$driveProd \\\\\$ServerIP\\prod /user:\$AdminUser \$AdminPass /persistent:yes | Out-Null }
+\$driveStg = Get-FreeDriveLetter
+if (\$driveStg) { net use \$driveStg \\\\\$ServerIP\\stg /user:\$AdminUser \$AdminPass /persistent:yes | Out-Null }
+Write-Host "[OK] Recursos Samba montados (prod=\$driveProd, stg=\$driveStg)." -ForegroundColor Green
 
-# 3. Importacion del Certificado SSL Raiz
-\$certSource = "Z:\public_html\rootCA.crt"
-if (Test-Path \$certSource) {
-    Import-Certificate -FilePath \$certSource -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
+# 3. Importacion del Certificado SSL Raiz (por UNC, sin depender de la letra)
+\$certSrc = "\\\\\$ServerIP\\prod\\public_html\\rootCA.crt"
+\$certTmp = "\$env:TEMP\\rootCA.crt"
+if (Test-Path \$certSrc) {
+    Copy-Item \$certSrc \$certTmp -Force
+    Import-Certificate -FilePath \$certTmp -CertStoreLocation Cert:\LocalMachine\Root | Out-Null
     Write-Host "[OK] Certificado Raiz importado." -ForegroundColor Green
 } else {
-    Write-Host "[WARN] No se pudo leer Z:\public_html\rootCA.crt. Instalalo manualmente." -ForegroundColor Yellow
+    Write-Host "[WARN] No se pudo leer \$certSrc. Instalalo manualmente." -ForegroundColor Yellow
 }
 ==============================================================================
 RESGUARDO_EOF
