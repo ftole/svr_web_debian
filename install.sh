@@ -43,13 +43,6 @@ find "${DEST_DIR}/core" -type f -name "*.sh" -exec chmod +x {} + 2>/dev/null || 
 
 ln -sf "${DEST_DIR}/bin/srvctl" "$BIN_LINK"
 
-# Enlaces en /root para retrocompatibilidad
-for s in asistente_servidor.sh verificar_servidor.sh limpiar_servidor.sh; do
-    if [ -f "${DEST_DIR}/${s}" ]; then
-        ln -sf "${DEST_DIR}/${s}" "/root/${s}"
-    fi
-done
-
 echo "[deploy] Plataforma instalada en ${DEST_DIR}."
 echo "[deploy] Comando global disponible: srvctl"
 echo ""
