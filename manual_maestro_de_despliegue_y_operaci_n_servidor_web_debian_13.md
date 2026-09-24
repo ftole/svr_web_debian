@@ -18,7 +18,7 @@
 | **Pila de Red** | IPv4 activa / IPv6 deshabilitado permanentemente a nivel kernel |
 | **Arquitectura de Dominios** | Dominio base + Subdominios para Producción, Pruebas y phpMyAdmin |
 | **Certificado SSL** | CA Raíz privada interna + Certificado SAN Comodín (*Wildcard* `*.dominio.local` e IP) |
-| **Control de Versiones** | Repositorio Git local en cada raíz web (`/var/www/izzi` y `/var/www/stg`) |
+| **Control de Versiones** | Repositorio Git local en cada raíz web (`/var/www/prod` y `/var/www/stg`) |
 | **Auditoría del Sistema** | Registro de comandos administrativos en `/var/log/sudo.log` y `auditd` |
 | **Respaldos Automatizados** | Snapshots diarios mediante hard-links (7 días) + Volcados SQL comprimidos |
 
@@ -49,7 +49,7 @@ apt-get autoremove --purge -y
 apt-get clean
 
 echo "=== 3. Eliminando archivos y carpetas residuales ==="
-rm -rf /var/www/izzi /var/www/stg
+rm -rf /var/www/prod /var/www/stg
 rm -rf /etc/apache2 /etc/php /etc/mysql /etc/samba /var/lib/mysql /var/log/samba /etc/phpmyadmin
 rm -rf /etc/ssl/localcerts /backup /opt/scripts
 rm -f /var/log/backup-daily.log /var/log/sudo.log /etc/cron.d/web-daily-backup
@@ -120,8 +120,8 @@ SERVER_IP=${INPUT_IP:-$DETECTED_IP}
 read -rp "[?] Dominio Base [empresa.local]: " INPUT_BASE_DOMAIN
 BASE_DOMAIN=${INPUT_BASE_DOMAIN:-empresa.local}
 
-read -rp "[?] Subdominio para Producción [izzi]: " INPUT_PROD_SUB
-PROD_SUB=${INPUT_PROD_SUB:-izzi}
+read -rp "[?] Subdominio para Producción [prod]: " INPUT_PROD_SUB
+PROD_SUB=${INPUT_PROD_SUB:-prod}
 PROD_FQDN="${PROD_SUB}.${BASE_DOMAIN}"
 
 read -rp "[?] Subdominio para Pruebas / Staging [stg]: " INPUT_STG_SUB
@@ -251,14 +251,14 @@ systemctl enable --now fail2ban >/dev/null
 systemctl restart fail2ban
 
 echo "[8/11] Estructura web, Git y permisos colaborativos..."
-mkdir -p /var/www/izzi/public_html
+mkdir -p /var/www/prod/public_html
 mkdir -p /var/www/stg/public_html
 
-cat << INDEX_PROD_EOF > /var/www/izzi/public_html/index.php
+cat << INDEX_PROD_EOF > /var/www/prod/public_html/index.php
 <?php header('Content-Type: text/html; charset=UTF-8'); ?>
 <!DOCTYPE html><html><head><meta charset="UTF-8"><title>Producción - ${PROD_FQDN}</title>
 <style>body{font-family:sans-serif;margin:40px;background:#f5f2e9;color:#233446}.card{background:#fff;padding:25px;border-radius:8px;border-left:6px solid #aa8a45;box-shadow:0 2px 5px rgba(0,0,0,0.1)}h1{margin-top:0}.badge{background:#aa8a45;color:#fff;padding:4px 8px;border-radius:4px;font-weight:bold}</style></head>
-<body><div class="card"><h1>Servidor Web Nativo - <span class="badge">PRODUCCIÓN (IZZI)</span></h1><p><strong>Dominio:</strong> ${PROD_FQDN}</p><p><strong>PHP:</strong> <?= phpversion(); ?></p><p><strong>DocumentRoot:</strong> <?= __DIR__; ?></p></div></body></html>
+<body><div class="card"><h1>Servidor Web Nativo - <span class="badge">PRODUCCIÓN (PROD)</span></h1><p><strong>Dominio:</strong> ${PROD_FQDN}</p><p><strong>PHP:</strong> <?= phpversion(); ?></p><p><strong>DocumentRoot:</strong> <?= __DIR__; ?></p></div></body></html>
 INDEX_PROD_EOF
 
 cat << INDEX_STG_EOF > /var/www/stg/public_html/index.php
@@ -268,14 +268,14 @@ cat << INDEX_STG_EOF > /var/www/stg/public_html/index.php
 <body><div class="card"><h1>Servidor Web Nativo - <span class="badge">STAGING (PRUEBAS)</span></h1><p><strong>Dominio:</strong> ${STG_FQDN}</p><p><strong>PHP:</strong> <?= phpversion(); ?></p><p><strong>DocumentRoot:</strong> <?= __DIR__; ?></p></div></body></html>
 INDEX_STG_EOF
 
-chown -R "${ADMIN_USER}":www-data /var/www/izzi /var/www/stg
-find /var/www/izzi /var/www/stg -type d -exec chmod 2775 {} \;
-find /var/www/izzi /var/www/stg -type f -exec chmod 0664 {} \;
+chown -R "${ADMIN_USER}":www-data /var/www/prod /var/www/stg
+find /var/www/prod /var/www/stg -type d -exec chmod 2775 {} \;
+find /var/www/prod /var/www/stg -type f -exec chmod 0664 {} \;
 
-git config --system --add safe.directory /var/www/izzi/public_html
+git config --system --add safe.directory /var/www/prod/public_html
 git config --system --add safe.directory /var/www/stg/public_html
 
-cd /var/www/izzi/public_html
+cd /var/www/prod/public_html
 if [ ! -d .git ]; then
     git init -b main
     git config user.name "Administrador Web" && git config user.email "admin@${BASE_DOMAIN}"
@@ -329,8 +329,8 @@ openssl x509 -req -in webserver.csr -CA rootCA.crt -CAkey rootCA.key -CAcreatese
 chmod 600 /etc/ssl/localcerts/*.key
 chmod 644 /etc/ssl/localcerts/*.crt
 
-cp /etc/ssl/localcerts/rootCA.crt /var/www/izzi/public_html/rootCA.crt
-chown "${ADMIN_USER}":www-data /var/www/izzi/public_html/rootCA.crt
+cp /etc/ssl/localcerts/rootCA.crt /var/www/prod/public_html/rootCA.crt
+chown "${ADMIN_USER}":www-data /var/www/prod/public_html/rootCA.crt
 
 echo "[10/11] Configurando Apache 2.4 con perfiles VirtualHosts..."
 a2enmod actions fcgid alias proxy_fcgi rewrite headers ssl >/dev/null
@@ -352,11 +352,11 @@ SEC_CONF
 a2enconf security-hardening >/dev/null
 
 # VirtualHost Producción
-cat << VH_PROD > /etc/apache2/sites-available/01-izzi.conf
+cat << VH_PROD > /etc/apache2/sites-available/01-prod.conf
 <VirtualHost *:80>
     ServerName ${PROD_FQDN}
     ServerAlias ${BASE_DOMAIN} localhost
-    DocumentRoot /var/www/izzi/public_html
+    DocumentRoot /var/www/prod/public_html
     RewriteEngine On
     RewriteCond %{HTTPS} off
     RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
@@ -365,11 +365,11 @@ cat << VH_PROD > /etc/apache2/sites-available/01-izzi.conf
 <VirtualHost *:443>
     ServerName ${PROD_FQDN}
     ServerAlias ${BASE_DOMAIN} localhost
-    DocumentRoot /var/www/izzi/public_html
+    DocumentRoot /var/www/prod/public_html
     SSLEngine on
     SSLCertificateFile /etc/ssl/localcerts/webserver.crt
     SSLCertificateKeyFile /etc/ssl/localcerts/webserver.key
-    <Directory /var/www/izzi/public_html>
+    <Directory /var/www/prod/public_html>
         Options Indexes FollowSymLinks
         AllowOverride All
         Require all granted
@@ -377,8 +377,8 @@ cat << VH_PROD > /etc/apache2/sites-available/01-izzi.conf
     <FilesMatch \.php$>
         SetHandler "proxy:unix:/run/php/php${PHP_VER}-fpm.sock|fcgi://localhost"
     </FilesMatch>
-    ErrorLog /var/log/apache2/izzi_error.log
-    CustomLog /var/log/apache2/izzi_access.log combined
+    ErrorLog /var/log/apache2/prod_error.log
+    CustomLog /var/log/apache2/prod_access.log combined
 </VirtualHost>
 VH_PROD
 
@@ -441,7 +441,7 @@ cat << VH_PMA > /etc/apache2/sites-available/03-webdev.conf
 VH_PMA
 
 a2dissite 000-default.conf >/dev/null || true
-a2ensite 01-izzi.conf 02-stg.conf 03-webdev.conf >/dev/null
+a2ensite 01-prod.conf 02-stg.conf 03-webdev.conf >/dev/null
 systemctl restart apache2
 
 echo "[11/11] Configurando Samba (SMBv3) y respaldos rotativos de 7 días..."
@@ -462,9 +462,9 @@ cat << SAMBA_CONF > /etc/samba/smb.conf
    log file = /var/log/samba/log.%m
    max log size = 1000
 
-[izzi]
-   comment = Entorno Producción IZZI
-   path = /var/www/izzi
+[prod]
+   comment = Entorno Producción PROD
+   path = /var/www/prod
    browseable = yes
    read only = no
    guest ok = no
@@ -540,12 +540,12 @@ cat << RESGUARDO_EOF
  Certificado SSL:          ${BASE_DOMAIN}, *.${BASE_DOMAIN} e IP ${SERVER_IP}
 
  Direcciones Web (HTTPS):
-  - Producción (izzi):     https://${PROD_FQDN} (o https://${SERVER_IP})
+  - Producción (prod):     https://${PROD_FQDN} (o https://${SERVER_IP})
   - Pruebas (stg):         https://${STG_FQDN}
   - phpMyAdmin:            https://${DB_FQDN} (o https://${SERVER_IP}/phpmyadmin)
 
  Recursos Compartidos de Red (Samba):
-  - Producción:            \\\\${SERVER_IP}\\izzi
+  - Producción:            \\\\${SERVER_IP}\\prod
   - Pruebas:               \\\\${SERVER_IP}\\stg
 
  Credenciales de Administrador:
@@ -577,9 +577,9 @@ Clear-DnsClientCache
 Write-Host "[OK] Dominios registrados en Windows y cache DNS purgada." -ForegroundColor Green
 
 # 2. Montaje de Unidades de Red Samba
-net use Z: \\\\\$ServerIP\\izzi /user:${ADMIN_USER} ${ADMIN_PASS} /persistent:yes
+net use Z: \\\\\$ServerIP\\prod /user:${ADMIN_USER} ${ADMIN_PASS} /persistent:yes
 net use Y: \\\\\$ServerIP\\stg  /user:${ADMIN_USER} ${ADMIN_PASS} /persistent:yes
-Write-Host "[OK] Unidades Z: (izzi) e Y: (stg) montadas correctamente." -ForegroundColor Green
+Write-Host "[OK] Unidades Z: (prod) e Y: (stg) montadas correctamente." -ForegroundColor Green
 
 # 3. Importación del Certificado SSL Raiz (Soporte Universal PowerShell 5.1 y 7+)
 # Se copia directamente desde el recurso compartido montado Z: evitando bloqueos SSL previos
@@ -625,7 +625,7 @@ Para realizar cualquier recuperación ante fallas de despliegue, errores de desa
 ### A. Reversión de Cambios en Código Web (Git)
 Aplica cuando un archivo editado desde Windows corrompe el sitio:
 ```bash
-cd /var/www/izzi/public_html
+cd /var/www/prod/public_html
 
 # Descartar modificaciones locales no commiteadas
 git restore .
@@ -636,9 +636,9 @@ git revert HEAD --no-edit
 
 # Regresar a un commit específico descartando lo posterior
 git reset --hard <hash_commit>
-sudo chown -R webadmin:www-data /var/www/izzi
-sudo find /var/www/izzi -type d -exec chmod 2775 {} \;
-sudo find /var/www/izzi -type f -exec chmod 0664 {} \;
+sudo chown -R webadmin:www-data /var/www/prod
+sudo find /var/www/prod -type d -exec chmod 2775 {} \;
+sudo find /var/www/prod -type f -exec chmod 0664 {} \;
 ```
 
 ### B. Restauración de Base de Datos MariaDB
@@ -657,9 +657,9 @@ sudo mariadb -e "SHOW DATABASES;"
 ### C. Restauración Completa desde Snapshots (Retención de 7 Días)
 Los snapshots diarios están ubicados en `/backup/snapshots/daily.0` (más reciente) hasta `daily.6` (hace 7 días):
 ```bash
-# Restaurar entorno Producción (izzi) al snapshot daily.0
-sudo rsync -a --delete /backup/snapshots/daily.0/izzi/ /var/www/izzi/
-sudo chown -R webadmin:www-data /var/www/izzi
+# Restaurar entorno Producción (prod) al snapshot daily.0
+sudo rsync -a --delete /backup/snapshots/daily.0/prod/ /var/www/prod/
+sudo chown -R webadmin:www-data /var/www/prod
 
 # Restaurar entorno Pruebas (stg) al snapshot daily.0
 sudo rsync -a --delete /backup/snapshots/daily.0/stg/ /var/www/stg/
@@ -725,7 +725,7 @@ Modo no interactivo (para automatización / CI):
 ```bash
 sudo ASISTENTE_NONINTERACTIVE=1 \
      SERVER_IP=10.0.0.10 BASE_DOMAIN=empresa.local \
-     PROD_SUB=izzi STG_SUB=stg DB_SUB=webdev \
+     PROD_SUB=prod STG_SUB=stg DB_SUB=webdev \
      ADMIN_USER=webadmin ADMIN_PASS='Temp123#' \
      bash asistente_servidor.sh
 ```
