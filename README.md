@@ -154,7 +154,6 @@ por pantalla y `Enter` acepta el valor por defecto).
 | `asistente_servidor.sh` | **Wizard de despliegue** (orquestador modular, con pre-chequeos, logging y auto-verificación). |
 | `verificar_servidor.sh` | **Auto-test** del stack (40 comprobaciones PASS/FAIL, incluye login real a phpMyAdmin). |
 | `limpiar_servidor.sh` | Orquestador de **retorno al estado base limpio** (ejecuta la suite de limpieza modular). |
-| `pma_login_test.sh` | Prueba puntual de login a phpMyAdmin (diagnóstico). |
 | `manual_maestro_..._13.md` | Manual técnico detallado. |
 
 ### Módulos de despliegue reutilizables (`scripts/deploy/`)
@@ -216,12 +215,6 @@ sudo bash /root/verificar_servidor.sh
 Comprueba: servicios activos, reglas UFW, HTTP→HTTPS, PHP-FPM, **login real a phpMyAdmin sin
 el aviso de almacenamiento ni advertencias de Twig**, SSL/SAN, Samba, respaldos y permisos.
 Devuelve `0` si todo pasa.
-
-Para una prueba puntual de login a phpMyAdmin (diagnóstico):
-
-```bash
-sudo PMA_HOST=webdev.tudominio.local bash /root/pma_login_test.sh
-```
 
 ---
 
