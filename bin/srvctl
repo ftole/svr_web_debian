@@ -1,0 +1,254 @@
+#!/bin/bash
+# ==============================================================================
+# bin/srvctl - Herramienta de gestion y administracion del servidor web Debian 13
+# ==============================================================================
+set -eo pipefail
+
+SRVCTL_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# shellcheck source=/dev/null
+[ -f "${SRVCTL_ROOT}/core/logger.sh" ] && . "${SRVCTL_ROOT}/core/logger.sh"
+# shellcheck source=/dev/null
+[ -f "${SRVCTL_ROOT}/core/validator.sh" ] && . "${SRVCTL_ROOT}/core/validator.sh"
+# shellcheck source=/dev/null
+[ -f "${SRVCTL_ROOT}/core/config.sh" ] && . "${SRVCTL_ROOT}/core/config.sh"
+
+cmd_deploy() {
+    validate_root
+    validate_systemd
+    validate_disk_space 512000
+
+    load_config
+
+    if [ -t 0 ] && [ "${ASISTENTE_NONINTERACTIVE:-0}" != "1" ]; then
+        echo "======================================================================"
+        echo "           ASISTENTE DE INSTALACION WEB - DEBIAN 13 (SRVCTL)          "
+        echo "======================================================================"
+        read -rp "[?] Direccion IP del servidor [${SERVER_IP}]: " in_ip
+        SERVER_IP="${in_ip:-$SERVER_IP}"
+        read -rp "[?] Dominio Base [${BASE_DOMAIN}]: " in_dom
+        BASE_DOMAIN="${in_dom:-$BASE_DOMAIN}"
+        read -rp "[?] Usuario Administrador [${ADMIN_USER}]: " in_user
+        ADMIN_USER="${in_user:-$ADMIN_USER}"
+        read -rp "[?] Contrasena Maestra [${ADMIN_PASS}]: " in_pass
+        ADMIN_PASS="${in_pass:-$ADMIN_PASS}"
+
+        echo ""
+        echo "Parametros confirmados:"
+        echo " - Servidor IP:    ${SERVER_IP}"
+        echo " - Dominio Base:   *.${BASE_DOMAIN}"
+        echo " - Administrador:  ${ADMIN_USER}"
+        echo "======================================================================"
+        read -rp "¿Iniciar despliegue? (s/N): " confirm
+        [[ "$confirm" =~ ^[sS]$ ]] || { echo "Operacion cancelada."; exit 0; }
+    fi
+
+    # Guardar configuracion
+    PROD_FQDN="${PROD_SUB}.${BASE_DOMAIN}"
+    STG_FQDN="${STG_SUB}.${BASE_DOMAIN}"
+    DB_FQDN="${DB_SUB}.${BASE_DOMAIN}"
+    save_config
+
+    log "Iniciando despliegue de la plataforma srvctl..."
+
+    bash "${SRVCTL_ROOT}/modules/system/power.sh" apply
+    bash "${SRVCTL_ROOT}/modules/system/network.sh" disable-ipv6
+    bash "${SRVCTL_ROOT}/modules/security/ssh.sh" apply
+    bash "${SRVCTL_ROOT}/modules/security/firewall.sh" apply
+    bash "${SRVCTL_ROOT}/modules/stack/base.sh"
+    bash "${SRVCTL_ROOT}/modules/stack/php.sh"
+    bash "${SRVCTL_ROOT}/modules/stack/redis.sh"
+    bash "${SRVCTL_ROOT}/modules/stack/mariadb.sh"
+    bash "${SRVCTL_ROOT}/modules/stack/phpmyadmin.sh"
+    bash "${SRVCTL_ROOT}/modules/web/ssl.sh"
+    bash "${SRVCTL_ROOT}/modules/web/dashboard.sh"
+    bash "${SRVCTL_ROOT}/modules/web/apache.sh"
+    bash "${SRVCTL_ROOT}/modules/share/samba.sh"
+    bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" setup
+
+    # Crear entornos iniciales prod y stg si no existen
+    for p in "${PROD_SUB}" "${STG_SUB}"; do
+        cmd_project_create "$p" >/dev/null 2>&1 || true
+    done
+
+    log "======================================================================"
+    log "  DESPLIEGUE FINALIZADO EXITOSAMENTE"
+    log "======================================================================"
+    log " - Portal / Dashboard:   https://${BASE_DOMAIN} (o https://${SERVER_IP})"
+    log " - Produccion:           https://${PROD_FQDN}"
+    log " - Pruebas:              https://${STG_FQDN}"
+    log " - phpMyAdmin:           https://${DB_FQDN}"
+    log " - Samba (Proyectos):    \\\\${SERVER_IP}\\proyectos"
+    log "======================================================================"
+}
+
+cmd_status() {
+    load_config
+    echo "======================================================================"
+    echo "           ESTADO DE SALUD DEL SERVIDOR - $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "======================================================================"
+    for srv in apache2 "php${PHP_VER}-fpm" mariadb redis-server smbd ufw fail2ban; do
+        if systemctl is-active --quiet "$srv" 2>/dev/null; then
+            printf " [OK]  Servicio %-20s: Activo\n" "$srv"
+        else
+            printf " [FAIL] Servicio %-19s: Inactivo\n" "$srv"
+        fi
+    done
+    echo ""
+    echo "Recurso Samba: \\\\${SERVER_IP}\\proyectos"
+    echo "Portal Central: https://${BASE_DOMAIN}"
+}
+
+cmd_project_create() {
+    validate_root
+    load_config
+    local name="$1"
+    [ -n "$name" ] || die "Debes especificar el nombre del proyecto. Ej: srvctl project create tienda"
+
+    if ! validate_subdomain "$name"; then
+        die "Nombre de proyecto invalido. Usa solo letras minusculas, numeros y guiones."
+    fi
+
+    local pdir="/var/www/${name}"
+    local pubdir="${pdir}/public_html"
+
+    mkdir -p "${pubdir}"
+
+    if [ ! -f "${pubdir}/index.php" ] && [ ! -f "${pubdir}/index.html" ]; then
+        cat <<EOF > "${pubdir}/index.php"
+<?php header('Content-Type: text/html; charset=UTF-8'); ?>
+<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${name} - ${name}.${BASE_DOMAIN}</title>
+<style>body{font-family:sans-serif;margin:40px;background:#0f172a;color:#f8fafc}.card{background:#1e293b;padding:25px;border-radius:8px;border-left:6px solid #38bdf8;box-shadow:0 2px 5px rgba(0,0,0,0.2)}h1{margin-top:0}.badge{background:#0284c7;color:#fff;padding:4px 8px;border-radius:4px;font-weight:bold}</style></head>
+<body><div class="card"><h1>Servidor Web Nativo - <span class="badge">${name}</span></h1><p><strong>Subdominio:</strong> https://${name}.${BASE_DOMAIN}</p><p><strong>PHP:</strong> <?= phpversion(); ?></p><p><strong>DocumentRoot:</strong> <?= __DIR__; ?></p></div></body></html>
+EOF
+    fi
+
+    chown -R "${ADMIN_USER}":www-data "${pdir}"
+    find "${pdir}" -type d -exec chmod 2775 {} \;
+    find "${pdir}" -type f -exec chmod 0664 {} \;
+
+    git config --system --add safe.directory "${pubdir}" >/dev/null 2>&1 || true
+    (
+        cd "${pubdir}"
+        if [ ! -d .git ]; then
+            git init -b main >/dev/null 2>&1 || true
+            git config user.name "Administrador Web" >/dev/null 2>&1 || true
+            git config user.email "admin@${BASE_DOMAIN}" >/dev/null 2>&1 || true
+            git add . >/dev/null 2>&1 || true
+            git commit -m "Commit inicial: ${name}" >/dev/null 2>&1 || true
+        fi
+    )
+
+    log "[Proyecto] Creado: ${name} -> https://${name}.${BASE_DOMAIN} (/var/www/${name})"
+}
+
+cmd_project_list() {
+    load_config
+    echo "======================================================================"
+    echo "                         PROYECTOS ACTIVOS                            "
+    echo "======================================================================"
+    for d in /var/www/*; do
+        if [ -d "$d" ]; then
+            local bname
+            bname=$(basename "$d")
+            if [ "$bname" != "html" ] && [[ ! "$bname" =~ ^_ ]]; then
+                printf " - %-20s -> https://%s.%s\n" "$bname" "$bname" "${BASE_DOMAIN}"
+            fi
+        fi
+    done
+}
+
+cmd_reset() {
+    validate_root
+    log "[Reset] Restaurando servidor al estado base limpio..."
+    bash "${SRVCTL_ROOT}/modules/security/firewall.sh" disable
+    systemctl stop apache2 "php${PHP_VER:-8.4}-fpm" mariadb redis-server smbd fail2ban 2>/dev/null || true
+
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get purge -y \
+      'apache2*' 'libapache2-mod-fcgid' 'php*' 'phpmyadmin*' \
+      'mariadb*' 'galera*' 'samba*' 'winbind' 'fail2ban' 'ufw' 'auditd' 'redis*' 2>/dev/null || true
+
+    apt-get autoremove --purge -y >/dev/null 2>&1 || true
+    apt-get clean >/dev/null 2>&1 || true
+
+    rm -rf /var/www/prod /var/www/stg /var/www/_dashboard
+    rm -rf /etc/apache2 /etc/php /etc/mysql /etc/samba /var/lib/mysql /etc/phpmyadmin /etc/ssl/localcerts /backup /opt/scripts
+    rm -f /var/log/backup-daily.log /var/log/sudo.log /etc/cron.d/web-daily-backup /etc/srvctl.conf /etc/asistente_servidor.conf
+
+    mkdir -p /var/www/html
+    chown -R root:root /var/www
+
+    bash "${SRVCTL_ROOT}/modules/system/power.sh" revert
+    bash "${SRVCTL_ROOT}/modules/system/network.sh" enable-ipv6
+    bash "${SRVCTL_ROOT}/modules/security/ssh.sh" revert
+
+    log "[Reset] Sistema restaurado al estado base limpio."
+}
+
+show_tui() {
+    if ! command -v whiptail >/dev/null 2>&1; then
+        echo "Uso: srvctl [deploy|status|project|backup|reset]"
+        exit 1
+    fi
+
+    local choice
+    choice=$(whiptail --title "Gestor de Servidor Web Debian 13 (srvctl)" \
+        --menu "Selecciona una accion para continuar:" 18 68 8 \
+        "1" "Desplegar Servidor (Instalacion Guiada)" \
+        "2" "Estado de Salud y Monitoreo" \
+        "3" "Crear Nuevo Proyecto Web" \
+        "4" "Listar Proyectos Web Activos" \
+        "5" "Ejecutar Respaldo Inmediato" \
+        "6" "Listar Respaldos y Snapshots" \
+        "7" "Resetear / Limpiar Servidor" \
+        "8" "Salir" 3>&1 1>&2 2>&3)
+
+    case "$choice" in
+        1) cmd_deploy ;;
+        2) cmd_status; read -rp "Presiona Enter para continuar..." ;;
+        3)
+            local p_name
+            p_name=$(whiptail --inputbox "Ingresa el nombre del nuevo proyecto (ej. tienda):" 10 50 3>&1 1>&2 2>&3)
+            if [ -n "$p_name" ]; then
+                cmd_project_create "$p_name"
+                read -rp "Presiona Enter para continuar..."
+            fi
+            ;;
+        4) cmd_project_list; read -rp "Presiona Enter para continuar..." ;;
+        5) bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" setup; read -rp "Presiona Enter..." ;;
+        6) bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" list; read -rp "Presiona Enter..." ;;
+        7)
+            if (whiptail --title "Confirmar Reset" --yesno "¿Estas seguro de purgar todos los paquetes y datos?" 10 60); then
+                cmd_reset
+                read -rp "Presiona Enter para continuar..."
+            fi
+            ;;
+        *) exit 0 ;;
+    esac
+}
+
+# Entrypoint CLI
+subcmd="${1:-}"
+case "$subcmd" in
+    deploy)  cmd_deploy ;;
+    status)  cmd_status ;;
+    project)
+        case "${2:-}" in
+            create) cmd_project_create "${3:-}" ;;
+            list)   cmd_project_list ;;
+            *) die "Uso: srvctl project [create <nombre>|list]" ;;
+        esac
+        ;;
+    backup)
+        case "${2:-}" in
+            run)      bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" setup ;;
+            list)     bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" list ;;
+            rollback) bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" rollback "${3:-daily.0}" ;;
+            *) die "Uso: srvctl backup [run|list|rollback <snapshot>]" ;;
+        esac
+        ;;
+    reset)   cmd_reset ;;
+    "")      show_tui ;;
+    *)       die "Comando desconocido: $subcmd. Usa: srvctl [deploy|status|project|backup|reset]" ;;
+esac
