@@ -246,8 +246,14 @@ limpieza de la caché de plantillas). Se reaplica de forma idempotente en cada e
 El asistente imprime un bloque listo para pegar en **PowerShell (como Administrador)** que:
 
 1. Registra los dominios en el archivo `hosts`.
-2. Monta las unidades de red Samba en **letras libres automáticas** (no fija `Z:`/`Y:`; salta las ocupadas).
-3. Importa el certificado raíz **por UNC** (`\\IP\prod\public_html\rootCA.crt`), sin depender de una letra de unidad.
+2. Habilita `EnableLinkedConnections` (para que las unidades mapeadas como administrador se vean en el Explorador).
+3. Monta las unidades de red Samba en **letras libres automáticas** (no fija `Z:`/`Y:`; salta las ocupadas).
+4. Importa el certificado raíz **por UNC** (`\\IP\prod\public_html\rootCA.crt`), sin depender de una letra de unidad.
+
+> [!NOTE]
+> Las unidades se mapean desde PowerShell **como Administrador**. Windows aísla esos mapeos de la
+> sesión normal, así que si no aparecen en el Explorador, **reinicia Windows una vez**:
+> `EnableLinkedConnections` ya queda aplicado y los mapeos son persistentes (`/persistent:yes`).
 
 > [!TIP]
 > **¿Por qué se registran los subdominios y no solo el dominio principal?**
