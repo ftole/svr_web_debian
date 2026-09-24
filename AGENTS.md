@@ -33,9 +33,6 @@ Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.
 | `templates/windows/` | Scripts de aprovisionamiento en 1 clic para clientes (`configurar-cliente.bat`, `configurar-desarrollador.bat`). |
 | `tests/test_validator.sh` | Suite de pruebas unitarias automatizadas y chaos testing de validacion de entradas. |
 | `install.sh` | Bootstrap de instalacion via `curl`: descarga a `/opt/srvctl` y enlaza el CLI global. |
-| `asistente_servidor.sh` | Wrapper de compatibilidad hacia `srvctl deploy`. |
-| `limpiar_servidor.sh` | Wrapper de compatibilidad hacia `srvctl reset`. |
-| `verificar_servidor.sh` | Suite de verificacion del estado del stack (diagnostico integral de servicios, HTTP, SSL y Samba). |
 | `README.md` | Manual principal y documentacion de arquitectura. |
 | `AGENTS.md` | Este archivo de contexto y directrices tecnicas. |
 | `LICENSE` | Licencia propietaria. |
@@ -85,7 +82,7 @@ curl -fsSL https://raw.githubusercontent.com/ftole/svr_web_debian/main/install.s
 **Diagnóstico y verificación (en el servidor):**
 ```bash
 sudo srvctl status
-sudo bash /opt/srvctl/verificar_servidor.sh
+sudo srvctl verify
 ```
 
 ## 6. Entorno de pruebas
