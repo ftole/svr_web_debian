@@ -1,329 +1,305 @@
-# Servidor Web Nativo Debian 13 — Despliegue automatizado
+# Plataforma de Servidor Web srvctl — Debian 13
 
 [![Debian 13](https://img.shields.io/badge/Debian-13-A81D33?logo=debian&logoColor=white)](https://www.debian.org/)
 [![Apache 2.4](https://img.shields.io/badge/Apache-2.4-D22128?logo=apache&logoColor=white)](https://httpd.apache.org/)
 [![PHP 8.4](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MariaDB 11.8](https://img.shields.io/badge/MariaDB-11.8-003545?logo=mariadb&logoColor=white)](https://mariadb.org/)
+[![Redis](https://img.shields.io/badge/Redis-7.x-DC382D?logo=redis&logoColor=white)](https://redis.io/)
+[![Composer](https://img.shields.io/badge/Composer-2.x-885630?logo=composer&logoColor=white)](https://getcomposer.org/)
 [![License: Proprietary](https://img.shields.io/badge/License-Proprietary-red)](LICENSE)
 [![CI](https://github.com/ftole/svr_web_debian/actions/workflows/ci.yml/badge.svg)](https://github.com/ftole/svr_web_debian/actions/workflows/ci.yml)
 
-Asistente (**wizard interactivo**) que despliega una arquitectura web tipo *Hostinger* sobre **Debian 13 (Trixie)**: Apache 2.4 (MPM Event) + PHP 8.4 FPM + MariaDB 11.8 + phpMyAdmin sobre subdominio dedicado, con **SSL comodín interno**, Samba SMBv3, UFW + Fail2ban, auditoría `sudo` y respaldos automáticos de 7 días.
-
-> [!NOTE]
-> Este `README.md` es el **manual principal**. La referencia técnica detallada está en
-> [`manual_maestro_de_despliegue_y_operaci_n_servidor_web_debian_13.md`](manual_maestro_de_despliegue_y_operaci_n_servidor_web_debian_13.md).
+**srvctl** es una plataforma de automatización y administración para servidores web nativos sobre **Debian 13 (Trixie)**. Transforma un equipo Debian recién instalado en un servidor de desarrollo y producción autosuficiente, modular, con paridad de características respecto a entornos profesionales (Hostinger), subdominios dinámicos sin configuración y resolución DNS simplificada mediante Pi-hole.
 
 > [!CAUTION]
 > Repositorio **propietario**. Todos los derechos reservados.
-> Autor: **José Francisco Toledo** — ver [`LICENSE`](LICENSE).
+> Autor y titular: **José Francisco Toledo** (cisco_red@outlook.com) — consulte [`LICENSE`](LICENSE).
 
 ---
 
 ## Tabla de contenidos
 
-1. [Características](#características)
-2. [Arquitectura](#arquitectura)
-3. [Requisitos](#requisitos)
-4. [Despliegue rápido con `curl`](#despliegue-rápido-con-curl)
-5. [Variables de configuración](#variables-de-configuración)
-6. [Scripts del repositorio](#scripts-del-repositorio)
-7. [Después del despliegue](#después-del-despliegue)
-8. [Verificación](#verificación)
-9. [Limpieza y reinstalación](#limpieza-y-reinstalación)
-10. [Incidentes conocidos y correcciones](#incidentes-conocidos-y-correcciones)
-11. [Seguridad](#seguridad)
-12. [Cliente Windows](#cliente-windows)
+1. [Vision general y caracteristicas](#vision-general-y-caracteristicas)
+2. [Arquitectura del sistema](#arquitectura-del-sistema)
+3. [Resolucion DNS con Pi-hole](#resolucion-dns-con-pi-hole)
+4. [Requisitos previos](#requisitos-previos)
+5. [Instalacion rapida](#instalacion-rapida)
+6. [Flujo de trabajo para desarrolladores](#flujo-de-trabajo-para-desarrolladores)
+7. [Flujo de configuracion para clientes](#flujo-de-configuracion-para-clientes)
+8. [Uso de la herramienta srvctl](#uso-de-la-herramienta-srvctl)
+9. [Seguridad y auditoria](#seguridad-y-auditoria)
+10. [Estructura del proyecto](#estructura-del-proyecto)
+11. [Verificacion y auto-diagnostico](#verificacion-y-auto-diagnostico)
 
 ---
 
-## Características
+## Vision general y caracteristicas
 
-| Parámetro | Detalle |
+| Componente | Implementacion |
 | :--- | :--- |
 | **Sistema Operativo** | Debian GNU/Linux 13 (Trixie) x86_64 |
-| **Pila Web** | Apache 2.4 (MPM Event) + PHP 8.4 FPM (FastCGI) |
-| **Base de Datos** | MariaDB 11.8 con usuario admin dual (`localhost` y `127.0.0.1`) |
-| **Gestor Visual DB** | phpMyAdmin 5.x sobre VirtualHost dedicado |
-| **Compartición de Red** | Samba (SMBv3, NetBIOS deshabilitado, puerto 445/tcp) |
-| **Seguridad** | UFW (IPv4) + Fail2ban (jail SSH) |
-| **Puertos UFW** | 22 (SSH), 80 (HTTP), 443 (HTTPS), 445 (Samba), 3389 (RDP) |
-| **Energía** | Bloqueo de suspensión/hibernación/cierre de tapa vía systemd |
-| **Red** | IPv4 activo / IPv6 deshabilitado a nivel kernel |
-| **SSL** | CA raíz privada + certificado SAN comodín (`*.dominio.local` + IP) |
-| **Control de versiones** | Repositorio Git local en cada raíz web (`/var/www/prod`, `/var/www/stg`) |
-| **Auditoría** | Registro de comandos administrativos en `/var/log/sudo.log` |
-| **Respaldos** | Snapshots diarios por hard-links (7 días) + volcados SQL comprimidos |
+| **CLI de Gestion** | `srvctl` en `/usr/local/bin/srvctl` (consola y menu TUI interactivo) |
+| **Servidor Web** | Apache 2.4 con MPM Event y `mod_vhost_alias` dinamico |
+| **Motor PHP** | PHP 8.4 FPM (FastCGI) con extensiones web completas |
+| **Gestor de Paquetes** | Composer 2.x binario global en `/usr/local/bin/composer` |
+| **Cache y Memoria** | Redis Server local + extension PHP `php-redis` |
+| **Base de Datos** | MariaDB 11.8 con acceso administrativo dual (`localhost` y `127.0.0.1`) |
+| **Panel de BD** | phpMyAdmin 5.x sobre subdominio dedicado, sin advertencias de almacenamiento |
+| **Dashboard de Salud** | Panel web en el dominio base (`https://empresa.local`) con telemetria en vivo |
+| **Subdominios Dinamicos** | Creacion instantanea de proyectos en `/var/www/<proyecto>/public_html` |
+| **Comparticion de Archivos**| Recurso unico Samba SMBv3 `[proyectos]` montado en `Z:\` |
+| **Seguridad de Red** | UFW (puertos 22, 80, 443, 445, 3389) + Fail2ban |
+| **Certificados TLS** | CA raiz interna + certificado comodin SAN (`*.empresa.local` + base + IP) |
+| **Auditoria y Respaldo** | Registro de comandos en `/var/log/sudo.log` y respaldos rotativos de 7 dias |
 
 ---
 
-## Arquitectura
+## Arquitectura del sistema
 
-Se parte de un **dominio base** y se generan tres subdominios:
+El sistema desacopla la administracion en tres capas: resolucion de nombres delegada, ruteo web dinamico y almacenamiento compartido unificado.
 
-| Entorno | Host | DocumentRoot |
-| :--- | :--- | :--- |
-| Producción | `prod.<dominio>` | `/var/www/prod/public_html` |
-| Pruebas / Staging | `stg.<dominio>` | `/var/www/stg/public_html` |
-| phpMyAdmin | `webdev.<dominio>` | `/usr/share/phpmyadmin` |
+```mermaid
+flowchart TD
+    subgraph Red Local
+        ClienteWindows["Cliente Windows / Navegador"]
+        DevWindows["Estacion Desarrollador (Z:\)"]
+        PiHole["Servidor DNS Pi-hole\n(*.empresa.local -> IP Servidor)"]
+    end
 
-Todos con **redirección 301** de HTTP a HTTPS y **certificado comodín**.
+    subgraph Servidor Debian 13
+        direction TB
+        Firewall["UFW Firewall (22, 80, 443, 445)"]
+        Apache["Apache 2.4 MPM Event"]
 
-> [!TIP]
-> El certificado incluye `*.dominio.local` (comodín) + el dominio base + la IP, así que
-> **cualquier subdominio queda cubierto por TLS automáticamente**, incluso los que agregues
-> en el futuro. No hay que regenerar el certificado por añadir subdominios.
+        subgraph VirtualHosts
+            VHostBase["Dominio Base\nhttps://empresa.local\n(Dashboard & Salud)"]
+            VHostProd["Produccion\nhttps://prod.empresa.local\n(/var/www/prod/public_html)"]
+            VHostStg["Staging\nhttps://stg.empresa.local\n(/var/www/stg/public_html)"]
+            VHostPMA["phpMyAdmin\nhttps://webdev.empresa.local\n(/usr/share/phpmyadmin)"]
+            VHostDynamic["Dinamico (*.empresa.local)\nhttps://proyecto.empresa.local\n(/var/www/%1/public_html)"]
+        end
+
+        subgraph Almacenamiento y Servicios
+            SambaShare["Samba SMBv3 [proyectos]\nRuta: /var/www\nMapeado a Z:"]
+            PHPEngine["PHP 8.4 FPM + Composer 2.x"]
+            RedisEngine["Redis Server + php-redis"]
+            MariaDBEngine["MariaDB 11.8"]
+            Backups["Respaldos Diarios (7 dias)\n/var/backups/srvctl"]
+        end
+    end
+
+    ClienteWindows -->|1. Consulta DNS| PiHole
+    ClienteWindows -->|2. HTTPS 443| Firewall
+    DevWindows -->|SMB 445| SambaShare
+    Firewall --> Apache
+    Apache --> VHostBase
+    Apache --> VHostProd
+    Apache --> VHostStg
+    Apache --> VHostPMA
+    Apache --> VHostDynamic
+    VHostDynamic --> PHPEngine
+    PHPEngine --> MariaDBEngine
+    PHPEngine --> RedisEngine
+```
 
 ---
 
-## Requisitos
+## Resolucion DNS con Pi-hole
 
-- Debian 13 (Trixie) recién instalado o con posibilidad de purgar paquetes.
-- Acceso **`root`** o usuario con `sudo`.
-- Conexión a Internet (repositorios APT y descarga de scripts).
-- Puertos **22** (SSH), **80**/**443** (web), **445** (Samba) y **3389** (RDP) libres y alcanzables.
+Para evitar tener que modificar el archivo `hosts` en cada equipo cada vez que se crea un subdominio, el entorno utiliza una regla comodin (wildcard) en su servidor **Pi-hole**. Debian no ejecuta ningun servidor DNS local adicional.
+
+### Configuracion en 1 paso en Pi-hole:
+
+1. Ingrese a la consola o SSH de su servidor Pi-hole.
+2. Agregue una regla comodin en `/etc/dnsmasq.d/02-wildcard.conf`:
+   ```bash
+   address=/.empresa.local/10.1.0.4
+   ```
+   *(Sustituya `empresa.local` por su dominio base y `10.1.0.4` por la IP de su servidor Debian).*
+3. Reinicie el servicio DNS de Pi-hole:
+   ```bash
+   pihole restartdns
+   ```
+
+A partir de este momento, cualquier peticion hacia `empresa.local`, `prod.empresa.local`, `tienda.empresa.local` o cualquier subdominio nuevo resolvera de forma automatica e instantanea a la IP del servidor.
 
 ---
 
-## Despliegue rápido con `curl`
+## Requisitos previos
 
-### Opción 1 — One-liner (interactivo, recomendada)
+- Servidor con **Debian 13 (Trixie)** x86_64.
+- Conectividad a Internet activa.
+- Acceso con usuario `root` o usuario con privilegios `sudo`.
+- Puertos libres: 22 (SSH), 80 (HTTP), 443 (HTTPS), 445 (Samba).
+
+---
+
+## Instalacion rapida
+
+Ejecute el siguiente comando en la terminal de su servidor Debian:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ftole/svr_web_debian/main/install.sh | sudo bash
 ```
 
-Aunque use `curl | bash`, el instalador **sí pide los datos por pantalla**: lee los prompts
-directamente de `/dev/tty`. Si no hay terminal (automatización), cae automáticamente a modo
-no interactivo con los valores por defecto.
+El instalador:
+1. Descargara la suite completa en `/opt/srvctl`.
+2. Creara el binario de control global `/usr/local/bin/srvctl`.
+3. Detectara los parametros de red de su equipo e iniciara el asistente guiado.
+4. Desplegara todo el stack (Apache, PHP 8.4, Redis, MariaDB, phpMyAdmin, Samba, SSL comodin).
+5. Depositara en el panel de bienvenida los instaladores automaticos para Windows.
 
-### Opción 2 — Descargar y revisar antes (segura)
+### Modo desatendido (no interactivo):
 
-Recomendada en producción: descarga, inspecciona y luego ejecuta.
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/ftole/svr_web_debian/main/install.sh -o /tmp/install.sh
-less /tmp/install.sh && sudo bash /tmp/install.sh
-```
-
-### Opción 3 — No interactiva con parámetros propios
+Si desea automatizar el despliegue con variables predefinidas:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ftole/svr_web_debian/main/install.sh -o /tmp/install.sh
 sudo ASISTENTE_NONINTERACTIVE=1 \
-     SERVER_IP=10.0.0.10 BASE_DOMAIN=miempresa.local \
-     PROD_SUB=prod STG_SUB=stg DB_SUB=webdev \
-     ADMIN_USER=adminweb ADMIN_PASS='MiClaveSegura#' \
+     SERVER_IP=10.1.0.4 \
+     BASE_DOMAIN=empresa.local \
+     ADMIN_USER=webadmin \
+     ADMIN_PASS='ClaveSegura2026#' \
      bash /tmp/install.sh
 ```
 
-> [!WARNING]
-> La Opción 1 (`curl | bash`) ejecuta código remoto directamente. En entornos productivos
-> prefiere la **Opción 2** (descargar → revisar → ejecutar).
+---
+
+## Flujo de trabajo para desarrolladores
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Dev as Desarrollador
+    participant Win as Windows PC
+    participant SMB as Servidor (Z:\proyectos)
+    participant Apache as Servidor Web
+    actor User as Cliente / Navegador
+
+    Dev->>Win: Ejecuta configurar-desarrollador.bat (como Administrador)
+    Win->>Win: Instala CA raiz, habilita LinkedConnections, mapea Z:
+    Dev->>SMB: Crea carpeta Z:\tienda\public_html\index.php
+    Dev->>SMB: Escribe codigo PHP / HTML
+    User->>Apache: Navega a https://tienda.empresa.local
+    Apache->>SMB: mod_vhost_alias detecta /var/www/tienda/public_html
+    Apache-->>User: Entrega sitio con SSL valido (200 OK)
+```
+
+### Pasos para el desarrollador:
+
+1. **Configurar el equipo (1 sola vez):**
+   - Abra el navegador e ingrese a `https://empresa.local`.
+   - En la seccion de descargas, haga clic en `configurar-desarrollador.bat`.
+   - Ejecute el archivo con clic derecho -> **Ejecutar como administrador**.
+   - Esto instalara el certificado SSL de confianza, configurara el acceso SSH y montara la unidad **`Z:\`** conectada a `\\<IP>\proyectos`.
+
+2. **Crear un nuevo proyecto (Cero configuracion):**
+   - Abra el Explorador de Windows y entre en la unidad `Z:\`.
+   - Cree una carpeta para su proyecto, por ejemplo: `Z:\tienda`.
+   - Dentro de ella, cree la subcarpeta `public_html` y coloque su archivo `index.php`.
+   - Listo. El proyecto esta inmediatamente disponible en:
+     `https://tienda.empresa.local`
+   - Sin tocar configuraciones de Apache, sin reiniciar servicios y con SSL valido.
 
 ---
 
-## Variables de configuración
+## Flujo de configuracion para clientes
 
-Se pasan como variables de entorno (solo en **modo no interactivo**; en interactivo se piden
-por pantalla y `Enter` acepta el valor por defecto).
+Para los usuarios que unicamente consultaran las aplicaciones web desde la red local:
 
-| Variable | Descripción | Valor por defecto |
-| :--- | :--- | :--- |
-| `ASISTENTE_NONINTERACTIVE` | `1` desactiva los prompts | auto (`1` si no hay TTY) |
-| `SERVER_IP` | IP del servidor | autodetectada |
-| `BASE_DOMAIN` | Dominio base | `empresa.local` |
-| `PROD_SUB` | Subdominio de Producción | `prod` |
-| `STG_SUB` | Subdominio de Pruebas | `stg` |
-| `DB_SUB` | Subdominio de phpMyAdmin | `webdev` |
-| `ADMIN_USER` | Usuario administrador (SO, MariaDB y Samba) | `webadmin` |
-| `ADMIN_PASS` | Contraseña maestra del administrador | `Temp123#` |
-
-> [!CAUTION]
-> Cambia `ADMIN_PASS`. El valor por defecto `Temp123#` es **solo para demo**. Usa la variable
-> de entorno o responde el prompt con una contraseña robusta.
+1. Ingrese a `https://empresa.local`.
+2. Descargue el archivo `configurar-cliente.bat`.
+3. Ejecute con clic derecho -> **Ejecutar como administrador**.
+4. El script importa la Autoridad Certificadora raiz (`rootCA.crt`) en el Almacen de Entidades de Certificacion de Confianza de Windows.
+5. Los navegadores (Chrome, Edge, Firefox) reconoceran cualquier subdominio del servidor con candado verde sin advertencias de seguridad.
 
 ---
 
-## Scripts del repositorio
+## Uso de la herramienta srvctl
 
-### Orquestadores principales
-
-| Archivo | Rol |
-| :--- | :--- |
-| `install.sh` | **Bootstrap**: descarga el repositorio completo y lanza el asistente (los prompts se leen de `/dev/tty`). Es el que consume el `curl`. |
-| `asistente_servidor.sh` | **Wizard de despliegue** (orquestador modular, con pre-chequeos, logging y auto-verificación). |
-| `verificar_servidor.sh` | **Auto-test** del stack (40 comprobaciones PASS/FAIL, incluye login real a phpMyAdmin). |
-| `limpiar_servidor.sh` | Orquestador de **retorno al estado base limpio** (ejecuta la suite de limpieza modular). |
-| `manual_maestro_..._13.md` | Manual técnico detallado. |
-
-### Módulos de despliegue reutilizables (`scripts/deploy/`)
-
-Cada script es autónomo, idempotente y puede ejecutarse por separado:
-
-| Script | Propósito |
-| :--- | :--- |
-| `01_energia_anti_suspension.sh` | Directivas systemd anti-suspensión, hibernación y cierre de tapa. |
-| `02_desactivar_ipv6.sh` | Desactiva IPv6 en el kernel vía `sysctl.d`. |
-| `03_instalar_paquetes_base.sh` | `apt update` e instalación del stack (Apache, PHP 8.4, MariaDB, herramientas). |
-| `04_configurar_usuarios.sh` | Usuario de instalación a `sudo`, crea usuario admin y activa auditoría en `/var/log/sudo.log`. |
-| `05_hardening_ssh.sh` | Hardening de configuración SSH (`sshd_config.d`). |
-| `06_cortafuegos_ufw_f2b.sh` | Reglas de cortafuegos UFW y jaula SSH en Fail2ban. |
-| `07_mariadb.sh` | Securización de MariaDB y privilegios de usuario administrativo. |
-| `08_phpmyadmin.sh` | phpMyAdmin no interactivo, almacenamiento `pmadb` (tablas `pma__*`) y parche Twig. |
-| `09_estructura_web_git.sh` | Carpetas `/var/www/prod` y `stg`, permisos `2775` y repositorios Git locales. |
-| `10_ssl_comodin.sh` | Root CA privada y certificado SAN comodín (`*.dominio` + IP). |
-| `11_apache_php.sh` | VirtualHosts HTTP/HTTPS con redirección 301 y PHP-FPM. |
-| `12_samba_shares.sh` | Recursos compartidos Samba SMBv3 con permisos integrados con `www-data`. |
-| `13_respaldos_cron.sh` | Respaldos rotativos de 7 días (rsync `--link-dest` + volcado MariaDB) y cron. |
-
-### Módulos de limpieza y rollback (`scripts/cleanup/`)
-
-Permiten revertir componentes de forma aislada o en conjunto:
-
-| Script | Propósito |
-| :--- | :--- |
-| `01_detener_servicios.sh` | Detiene servicios web, bases de datos, compartición y firewall. |
-| `02_purgar_paquetes.sh` | Purga APT de todos los paquetes instalados del stack. |
-| `03_eliminar_residuales.sh` | Elimina carpetas y archivos de configuración residuales. |
-| `04_restaurar_sistema.sh` | Restaura IPv6 y reactiva políticas de suspensión del kernel. |
-| `05_eliminar_usuarios.sh` | Elimina usuarios secundarios creados protegiendo la sesión activa. |
-
----
-
-## Después del despliegue
-
-1. **Registrar nombres en Windows** (ver [Cliente Windows](#cliente-windows)), o en tu DNS.
-2. **Credenciales**: al finalizar, el asistente imprime una pantalla de resguardo con la IP,
-   dominios, credenciales y los comandos de Windows. Se guarda además en
-   `/etc/asistente_servidor.conf` (modo `600`, solo `root`).
-3. **Unidades de red Samba** `\\IP\prod` y `\\IP\stg` con el usuario administrador.
-4. **Certificado raíz** disponible en `\\IP\prod\public_html\rootCA.crt` para importarlo como
-   de confianza.
-5. **SSH / Git**: el bloque de Windows crea el alias **`ssh web`**; úsalo para administrar y
-   versionar los repositorios Git locales (`/var/www/prod`, `/var/www/stg`).
-
----
-
-## Verificación
-
-En cualquier momento, en el servidor:
+El comando `srvctl` esta disponible globalmente en el sistema.
 
 ```bash
-sudo bash /root/verificar_servidor.sh
+srvctl [comando] [argumentos]
 ```
 
-Comprueba: servicios activos, reglas UFW, HTTP→HTTPS, PHP-FPM, **login real a phpMyAdmin sin
-el aviso de almacenamiento ni advertencias de Twig**, SSL/SAN, Samba, respaldos y permisos.
-Devuelve `0` si todo pasa.
+### Comandos disponibles:
+
+| Comando | Descripcion |
+| :--- | :--- |
+| `srvctl` | Inicia el menu grafico interactivo (TUI) con Whiptail |
+| `srvctl status` | Muestra el estado operativo de todos los servicios del stack |
+| `srvctl project create <nombre>` | Crea la estructura base para un nuevo proyecto (`public_html/index.php`) |
+| `srvctl project list` | Lista los proyectos activos detectados en `/var/www` |
+| `srvctl backup` | Ejecuta un respaldo manual inmediato de base de datos y archivos web |
+| `srvctl reset` | Revierte el servidor al estado base limpio (rollback seguro) |
+| `srvctl deploy` | Ejecuta el despliegue del stack completo |
 
 ---
 
-## Limpieza y reinstalación
+## Seguridad y auditoria
 
-Para volver a un estado base y volver a desplegar:
+- **UFW Firewall:** Politica de denegacion por defecto (`deny incoming`). Solo puertos estrictamente necesarios abiertos.
+- **Fail2ban:** Proteccion contra ataques de fuerza bruta SSH activa con baneo automatico de IPs.
+- **Auditoria Administrativa:** Toda ejecucion de comandos con privilegios elevados queda registrada con sello temporal en `/var/log/sudo.log`.
+- **Restricciones de Samba:** Los archivos sensibles (`.git`, `.env`, `.htaccess`, llaves privadas `*.key` y el panel de control `_dashboard`) estan vetados de la red compartida (`veto files`).
+- **Permisos SGID:** Las carpetas bajo `/var/www` mantienen el bit SGID (`2775`) y grupo `www-data` para evitar discrepancias de permisos entre Samba y Apache.
+
+---
+
+## Estructura del proyecto
+
+```
+/opt/srvctl/
+├── bin/
+│   └── srvctl                  # CLI ejecutable principal
+├── core/
+│   ├── config.sh               # Gestion de configuracion persistente
+│   ├── logger.sh               # Sistema de logs y consola
+│   └── validator.sh            # Validadores de red, dominios y seguridad
+├── modules/
+│   ├── backup/snapshot.sh      # Respaldos diarios por hard-links
+│   ├── security/firewall.sh    # Reglas UFW y Fail2ban
+│   ├── security/ssh.sh         # Hardening SSH y auditoria sudo
+│   ├── share/samba.sh          # Servidor Samba SMBv3 [proyectos]
+│   ├── stack/base.sh           # Utilidades y paquetes base
+│   ├── stack/mariadb.sh        # MariaDB 11.8 y securizacion
+│   ├── stack/php.sh            # PHP 8.4 FPM y Composer 2.x
+│   ├── stack/phpmyadmin.sh     # phpMyAdmin 5.x y storage pmadb
+│   ├── stack/redis.sh          # Redis Server y extension php-redis
+│   ├── system/network.sh       # Optimizacion de red (desactivar IPv6)
+│   ├── system/power.sh         # Politicas anti-suspension systemd
+│   ├── web/apache.sh           # VirtualHosts y ruteo mod_vhost_alias
+│   ├── web/dashboard.sh        # Panel de salud y recursos descargables
+│   └── web/ssl.sh              # Autoridad CA raiz y certificado comodin
+├── templates/
+│   ├── dashboard/              # Codigo fuente del panel de salud
+│   └── windows/                # Scripts batch .bat de aprovisionamiento
+└── tests/
+    └── test_validator.sh       # Suite de pruebas unitarias y chaos testing
+```
+
+---
+
+## Verificacion y auto-diagnostico
+
+Para comprobar la integridad del stack en cualquier momento:
 
 ```bash
-sudo bash /root/limpiar_servidor.sh     # purga todo y deja el sistema limpio
-sudo bash /root/asistente_servidor.sh   # despliegue limpio
+sudo bash /opt/srvctl/verificar_servidor.sh
 ```
 
-> [!NOTE]
-> El limpiador **no** borra el usuario con el que se ejecuta ni su acceso SSH/sudo.
-
----
-
-## Incidentes conocidos y correcciones
-
-Ambos defectos fueron detectados en pruebas reales y **corregidos por el asistente**.
-
-### 1. «El almacenamiento de configuración phpMyAdmin no está completamente configurado»
-
-**Causa:** usar `dbconfig-install false` deja `/etc/phpmyadmin/config-db.php` con
-`$dbuser=''` y `$dbpass=''`; `config.inc.php` configura `pmadb` pero sin usuario de control
-válido, así que se desactivan las funciones extendidas (relaciones, historial, favoritos,
-marcadores, seguimiento…).
-
-**Corrección aplicada:** se importa `create_tables.sql` (19 tablas `pma__*`), se crea el
-usuario de control `pma@localhost` con privilegios mínimos y se escribe `config-db.php` con
-las credenciales correctas. Alternativa equivalente: `dpkg-reconfigure -plow phpmyadmin`.
-
-### 2. Advertencias deprecadas de `twig/twig` 3.21+
-
-**Causa:** Debian 13 sirve **phpMyAdmin 5.2.2** con **php-twig 3.27**; `TransTokenParser.php`
-usa la API `getExpressionParser()->parseExpression()`, deprecada desde Twig 3.21. Son avisos
-`E_USER_DEPRECATED` **cosméticos** (no rompen nada).
-
-**Corrección aplicada:** parche oficial no invasivo (`$this->parser->parseExpression()` +
-limpieza de la caché de plantillas). Se reaplica de forma idempotente en cada ejecución.
-
----
-
-## Seguridad
-
-> [!CAUTION]
-> Cambia `ADMIN_PASS`: el valor por defecto `Temp123#` es solo para demo.
-
-> [!WARNING]
-> `curl | bash` ejecuta código remoto directamente. En producción usa la **Opción 2**
-> (descargar → revisar → ejecutar).
-
-> [!IMPORTANT]
-> No subas credenciales: `debian_pruebas.txt` está en `.gitignore`. No lo comitees.
-
-- El asistente endurece SSH (`PermitRootLogin no`), activa UFW con política `deny incoming`
-  y Fail2ban.
-- Las credenciales quedan en `/etc/asistente_servidor.conf` (modo `600`, solo `root`).
-
----
-
-## Cliente Windows
-
-El asistente imprime un bloque listo para pegar en **PowerShell (como Administrador)** que:
-
-1. Registra los dominios en el archivo `hosts`.
-2. Habilita `EnableLinkedConnections` (para que las unidades mapeadas como administrador se vean en el Explorador).
-3. Monta las unidades de red Samba en **letras libres automáticas** (no fija `Z:`/`Y:`; salta las ocupadas).
-4. Importa el certificado raíz **por UNC** (`\\IP\prod\public_html\rootCA.crt`), sin depender de una letra de unidad.
-5. Crea una **llave SSH** (`id_ed25519_web`) y el alias **`web`** en `~/.ssh/config` para gestionar Git en el servidor.
-
-Con el alias `web` te conectas con `ssh web` y trabajas con los repositorios Git locales de `/var/www/prod` y `/var/www/stg` (control de versiones).
-
-> [!NOTE]
-> Las unidades se mapean desde PowerShell **como Administrador**. Windows aísla esos mapeos de la
-> sesión normal, así que si no aparecen en el Explorador, **reinicia Windows una vez**:
-> `EnableLinkedConnections` ya queda aplicado y los mapeos son persistentes (`/persistent:yes`).
-
-> [!TIP]
-> **¿Por qué se registran los subdominios y no solo el dominio principal?**
-> El certificado es comodín (`*.dominio.local`), así que TLS ya valida todos los subdominios.
-> Pero el archivo `hosts` de Windows es una **lista plana sin comodines**: si solo agregas
-> `dominio.local`, `prod.dominio.local` no resolverá a la IP y el navegador no podrá conectar
-> (error de resolución, no de certificado). Por eso se registran cada uno de los subdominios.
-> Alternativa: usar un DNS con comodín (p. ej. `dnsmasq`) o un dominio público real.
-
----
-
-## Estructura del repositorio
-
-```
-svr_web_debian/
-├── README.md
-├── LICENSE                      # propietaria (All rights reserved)
-├── install.sh                   # bootstrap (curl)
-├── asistente_servidor.sh        # wizard de despliegue
-├── verificar_servidor.sh        # auto-test
-├── limpiar_servidor.sh          # reset a estado base
-├── pma_login_test.sh            # prueba de login phpMyAdmin
-├── manual_maestro_..._13.md     # manual técnico completo
-├── .gitignore                   # excluye credenciales y temporales
-├── .gitattributes               # fuerza LF en scripts
-└── .github/workflows/ci.yml     # CI: bash -n + shellcheck + actionlint
-```
+La suite valida:
+- Servicios activos en systemd (Apache, PHP-FPM, MariaDB, Redis, Samba, UFW, Fail2ban).
+- Respuesta HTTP 200 en el dominio base (Dashboard) y subdominios.
+- Correcta ejecucion de PHP 8.4 y conectividad con Redis.
+- Login real a phpMyAdmin contra la base de datos sin advertencias.
+- Permisos del recurso compartido Samba `[proyectos]`.
+- Integridad de certificados SSL comodin.
+- Estado del sistema de respaldos.
 
 ---
 
 ## Licencia
 
-Este proyecto es **propietario**. Todos los derechos reservados.
-Autor y titular del copyright: **José Francisco Toledo** (2026).
-Consulta el archivo [`LICENSE`](LICENSE) para los términos completos.
+Este software es propiedad exclusiva de **José Francisco Toledo**. Todos los derechos reservados.
+Consulte el archivo [`LICENSE`](LICENSE) para los terminos de licenciamiento.
