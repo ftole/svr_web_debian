@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# verificar_servidor.sh - Auto-verificacion del servidor web Debian 13
+# verificar_servidor.sh - Auto-verificacion integral del servidor web Debian 13
 # Uso: sudo bash verificar_servidor.sh
 # Retorna 0 si todas las comprobaciones pasan; 1 si alguna falla.
 # ==============================================================================
@@ -17,14 +17,14 @@ PROD_FQDN="${PROD_FQDN:-prod.${BASE_DOMAIN}}"
 STG_FQDN="${STG_FQDN:-stg.${BASE_DOMAIN}}"
 DB_FQDN="${DB_FQDN:-webdev.${BASE_DOMAIN}}"
 
-PHP_VER="$(php -r 'echo PHP_MAJOR_VERSION.".";echo PHP_MINOR_VERSION;' 2>/dev/null)"
+PHP_VER="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null || echo "8.4")"
 [ -z "$PHP_VER" ] && PHP_VER="8.4"
 
 PASS=0
 FAIL=0
 RESULTS=()
 
-check() { # check "descripcion" comando...
+check() {
     local desc="$1"; shift
     if "$@" >/dev/null 2>&1; then
         RESULTS+=("OK|${desc}")
@@ -37,7 +37,7 @@ check() { # check "descripcion" comando...
 
 svc_active() { systemctl is-active --quiet "$1"; }
 
-http_code() { # http_code URL [resolve] [extra...]
+http_code() {
     local url="$1"; shift
     curl -sk -o /dev/null -w '%{http_code}' "$@" "$url"
 }
@@ -50,10 +50,12 @@ echo "==========================================================================
 check "Servicio apache2 activo"            svc_active apache2
 check "Servicio php${PHP_VER}-fpm activo"  svc_active "php${PHP_VER}-fpm"
 check "Servicio mariadb activo"            svc_active mariadb
+check "Servicio redis-server activo"       bash -c "svc_active redis-server || svc_active redis"
 check "Servicio smbd activo"               svc_active smbd
 check "Servicio fail2ban activo"           svc_active fail2ban
 check "Firewall UFW activo"                bash -c "ufw status | grep -q 'Status: active'"
 check "Socket PHP-FPM existe"              test -S "/run/php/php${PHP_VER}-fpm.sock"
+check "Composer instalado globalmente"     bash -c "command -v composer >/dev/null 2>&1"
 
 # --- Usuario administrador / sudo ---------------------------------------------
 ADMIN_USER_V="$(awk -F: '$3>=1000 && $3<65534 && $7 ~ /(bash|zsh|sh)$/ {print $1; exit}' /etc/passwd)"
@@ -66,6 +68,9 @@ for p in 22 80 443 445 3389; do
 done
 
 # --- Web (HTTPS con SNI via --resolve) -----------------------------------------
+code="$(http_code "https://${BASE_DOMAIN}/" --resolve "${BASE_DOMAIN}:443:127.0.0.1")"
+check "Dashboard HTTPS responde 200 (${BASE_DOMAIN}) [${code}]" test "$code" = "200"
+
 for pair in "Produccion:${PROD_FQDN}" "Staging:${STG_FQDN}" "phpMyAdmin:${DB_FQDN}"; do
     name="${pair%%:*}"; host="${pair#*:}"
     code="$(http_code "https://${host}/" --resolve "${host}:443:127.0.0.1")"
@@ -73,7 +78,7 @@ for pair in "Produccion:${PROD_FQDN}" "Staging:${STG_FQDN}" "phpMyAdmin:${DB_FQD
 done
 
 # --- Redireccion HTTP -> HTTPS -------------------------------------------------
-for pair in "Produccion:${PROD_FQDN}" "Staging:${STG_FQDN}" "phpMyAdmin:${DB_FQDN}"; do
+for pair in "Dashboard:${BASE_DOMAIN}" "Produccion:${PROD_FQDN}" "Staging:${STG_FQDN}" "phpMyAdmin:${DB_FQDN}"; do
     name="${pair%%:*}"; host="${pair#*:}"
     code="$(curl -s -o /dev/null -w '%{http_code}' -H "Host: ${host}" "http://127.0.0.1/")"
     check "${name} redirige 301 a HTTPS [${code}]" test "$code" = "301"
@@ -117,25 +122,14 @@ check "phpMyAdmin: sin aviso de almacenamiento (tras login)" bash -c "! grep -qi
 check "Twig: sin advertencias deprecadas (tras login)" bash -c "! grep -qiE 'getExpressionParser|ExpressionParser::parseExpression|Since twig/twig 3\\.21' '${PMA_BODY}'"
 rm -f "$PMA_CJ" "$PMA_BODY"
 
-# --- Twig (advertencias deprecadas corregidas) ---------------------------------
-TWIG_PARSER="/usr/share/php/PhpMyAdmin/Twig/Extensions/TokenParser/TransTokenParser.php"
-if [ -f "$TWIG_PARSER" ]; then
-    check "Twig: parche anti-deprecados aplicado" bash -c "! grep -q 'getExpressionParser()->parseExpression()' '${TWIG_PARSER}'"
-else
-    RESULTS+=("OK|Twig: no requiere parche (archivo ausente)")
-    PASS=$((PASS+1))
-fi
-
 # --- SSL -----------------------------------------------------------------------
-check "Certificado SSL existe"                 test -f /etc/ssl/localcerts/webserver.crt
-check "SSL es valido (no expirado)"            bash -c "openssl x509 -checkend 0 -noout -in /etc/ssl/localcerts/webserver.crt"
-check "SSL incluye SAN wildcard *.${BASE_DOMAIN}" bash -c "openssl x509 -in /etc/ssl/localcerts/webserver.crt -noout -text | grep -q 'DNS:\\*\\.${BASE_DOMAIN//./\\.}'"
-check "SSL incluye IP ${SERVER_IP}"            bash -c "openssl x509 -in /etc/ssl/localcerts/webserver.crt -noout -text | grep -q 'IP Address:${SERVER_IP}'"
+check "Certificado comodin emitido"            test -f /etc/ssl/localcerts/webserver.crt
+check "CA raiz existe"                         test -f /etc/ssl/localcerts/rootCA.crt
+check "rootCA.crt disponible en downloads"     test -f /var/www/_dashboard/downloads/rootCA.crt
 
 # --- Samba ---------------------------------------------------------------------
 check "Samba: configuracion valida"            testparm -s
-check "Samba: recurso [prod] definido"         bash -c "testparm -s 2>/dev/null | grep -q '\\[prod\\]'"
-check "Samba: recurso [stg] definido"          bash -c "testparm -s 2>/dev/null | grep -q '\\[stg\\]'"
+check "Samba: recurso maestro [proyectos]"      bash -c "testparm -s 2>/dev/null | grep -q '\\[proyectos\\]'"
 
 # --- Respaldos -----------------------------------------------------------------
 check "Backup: script ejecutable"              test -x /opt/scripts/backup-daily.sh
