@@ -16,31 +16,36 @@ setup_backup() {
     validate_root
     load_config
 
-    log "[Respaldos] Configurando sistema de snapshots rotativos de 7 dias..."
-    mkdir -p /backup/snapshots /backup/database /opt/scripts
+    local backup_dir="${BACKUP_DIR:-/var/backups/srvctl}"
+    log "[Respaldos] Configurando sistema de snapshots rotativos de 7 dias en ${backup_dir}..."
+    mkdir -p "${backup_dir}/snapshots" "${backup_dir}/database" /opt/scripts
+    if [ ! -e /backup ]; then
+        ln -sf "${backup_dir}" /backup
+    fi
 
-    cat > /opt/scripts/backup-daily.sh <<'EOF'
+    cat > /opt/scripts/backup-daily.sh <<EOF
 #!/bin/bash
 set -eo pipefail
-DATE_STR=$(date +"%Y-%m-%d_%H-%M-%S")
+DATE_STR=\$(date +"%Y-%m-%d_%H-%M-%S")
 LOG_FILE="/var/log/backup-daily.log"
+BACKUP_DIR="${backup_dir}"
 
-echo "=== Respaldo iniciado: ${DATE_STR} ===" >> "${LOG_FILE}"
+echo "=== Respaldo iniciado: \${DATE_STR} ===" >> "\${LOG_FILE}"
 
-mariadb-dump --all-databases --single-transaction --quick 2>/dev/null | gzip -9 > "/backup/database/db_all_${DATE_STR}.sql.gz" || true
-find /backup/database -type f -name "db_all_*.sql.gz" -mtime +7 -delete 2>/dev/null || true
+mariadb-dump --all-databases --single-transaction --quick 2>/dev/null | gzip -9 > "\${BACKUP_DIR}/database/db_all_\${DATE_STR}.sql.gz" || true
+find "\${BACKUP_DIR}/database" -type f -name "db_all_*.sql.gz" -mtime +7 -delete 2>/dev/null || true
 
-if [ -d "/backup/snapshots/daily.6" ]; then rm -rf "/backup/snapshots/daily.6"; fi
+if [ -d "\${BACKUP_DIR}/snapshots/daily.6" ]; then rm -rf "\${BACKUP_DIR}/snapshots/daily.6"; fi
 for i in 5 4 3 2 1 0; do
-    if [ -d "/backup/snapshots/daily.${i}" ]; then mv "/backup/snapshots/daily.${i}" "/backup/snapshots/daily.$((i+1))"; fi
+    if [ -d "\${BACKUP_DIR}/snapshots/daily.\${i}" ]; then mv "\${BACKUP_DIR}/snapshots/daily.\${i}" "\${BACKUP_DIR}/snapshots/daily.\$((i+1))"; fi
 done
 
 LINK_DEST_PARAM=""
-if [ -d "/backup/snapshots/daily.1" ]; then LINK_DEST_PARAM="--link-dest=/backup/snapshots/daily.1"; fi
-mkdir -p /backup/snapshots/daily.0
-rsync -a --delete ${LINK_DEST_PARAM} /var/www/ /backup/snapshots/daily.0/ >> "${LOG_FILE}" 2>&1
+if [ -d "\${BACKUP_DIR}/snapshots/daily.1" ]; then LINK_DEST_PARAM="--link-dest=\${BACKUP_DIR}/snapshots/daily.1"; fi
+mkdir -p "\${BACKUP_DIR}/snapshots/daily.0"
+rsync -a --delete \${LINK_DEST_PARAM} /var/www/ "\${BACKUP_DIR}/snapshots/daily.0/" >> "\${LOG_FILE}" 2>&1
 
-echo "=== Respaldo completado: $(date +"%Y-%m-%d_%H-%M-%S") ===" >> "${LOG_FILE}"
+echo "=== Respaldo completado: \$(date +"%Y-%m-%d_%H-%M-%S") ===" >> "\${LOG_FILE}"
 EOF
 
     chmod 750 /opt/scripts/backup-daily.sh
@@ -57,21 +62,23 @@ EOF
 }
 
 list_backups() {
-    echo "=== Snapshots de Archivos Web (/backup/snapshots) ==="
-    if [ -d /backup/snapshots ]; then
-        ls -ld /backup/snapshots/daily.* 2>/dev/null || echo "No hay snapshots creados aun."
+    local backup_dir="${BACKUP_DIR:-/var/backups/srvctl}"
+    echo "=== Snapshots de Archivos Web (${backup_dir}/snapshots) ==="
+    if [ -d "${backup_dir}/snapshots" ]; then
+        ls -ld "${backup_dir}"/snapshots/daily.* 2>/dev/null || echo "No hay snapshots creados aun."
     fi
     echo ""
-    echo "=== Volcados de Base de Datos (/backup/database) ==="
-    if [ -d /backup/database ]; then
-        ls -lh /backup/database/db_all_*.sql.gz 2>/dev/null || echo "No hay volcados creados aun."
+    echo "=== Volcados de Base de Datos (${backup_dir}/database) ==="
+    if [ -d "${backup_dir}/database" ]; then
+        ls -lh "${backup_dir}"/database/db_all_*.sql.gz 2>/dev/null || echo "No hay volcados creados aun."
     fi
 }
 
 rollback_web() {
     validate_root
     local snap="${1:-daily.0}"
-    local snap_path="/backup/snapshots/${snap}"
+    local backup_dir="${BACKUP_DIR:-/var/backups/srvctl}"
+    local snap_path="${backup_dir}/snapshots/${snap}"
     if [ ! -d "$snap_path" ]; then
         die "El snapshot ${snap_path} no existe."
     fi
