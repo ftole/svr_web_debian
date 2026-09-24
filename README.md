@@ -227,7 +227,8 @@ srvctl [comando] [argumentos]
 | Comando | Descripcion |
 | :--- | :--- |
 | `srvctl` | Inicia el menu grafico interactivo (TUI) con Whiptail |
-| `srvctl status` | Muestra el estado operativo de todos los servicios del stack |
+| `srvctl status` | Muestra el estado operativo de los servicios del stack |
+| `srvctl verify` | Ejecuta la suite de diagnostico profundo y auto-verificacion (40 comprobaciones) |
 | `srvctl project create <nombre>` | Crea la estructura base para un nuevo proyecto (`public_html/index.php`) |
 | `srvctl project list` | Lista los proyectos activos detectados en `/var/www` |
 | `srvctl backup` | Ejecuta un respaldo manual inmediato de base de datos y archivos web |
@@ -285,7 +286,7 @@ srvctl [comando] [argumentos]
 Para comprobar la integridad del stack en cualquier momento:
 
 ```bash
-sudo bash /opt/srvctl/verificar_servidor.sh
+sudo srvctl verify
 ```
 
 La suite valida:
