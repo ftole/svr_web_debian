@@ -146,14 +146,48 @@ por pantalla y `Enter` acepta el valor por defecto).
 
 ## Scripts del repositorio
 
+### Orquestadores principales
+
 | Archivo | Rol |
 | :--- | :--- |
-| `install.sh` | **Bootstrap**: descarga los scripts y lanza el asistente (los prompts se leen de `/dev/tty`). Es el que consume el `curl`. |
-| `asistente_servidor.sh` | **Wizard de despliegue** (idempotente, con pre-chequeos, logging y auto-verificación). |
+| `install.sh` | **Bootstrap**: descarga el repositorio completo y lanza el asistente (los prompts se leen de `/dev/tty`). Es el que consume el `curl`. |
+| `asistente_servidor.sh` | **Wizard de despliegue** (orquestador modular, con pre-chequeos, logging y auto-verificación). |
 | `verificar_servidor.sh` | **Auto-test** del stack (40 comprobaciones PASS/FAIL, incluye login real a phpMyAdmin). |
-| `limpiar_servidor.sh` | Retorno al **estado base limpio** (purga total, preserva el acceso SSH/sudo). |
+| `limpiar_servidor.sh` | Orquestador de **retorno al estado base limpio** (ejecuta la suite de limpieza modular). |
 | `pma_login_test.sh` | Prueba puntual de login a phpMyAdmin (diagnóstico). |
 | `manual_maestro_..._13.md` | Manual técnico detallado. |
+
+### Módulos de despliegue reutilizables (`scripts/deploy/`)
+
+Cada script es autónomo, idempotente y puede ejecutarse por separado:
+
+| Script | Propósito |
+| :--- | :--- |
+| `01_energia_anti_suspension.sh` | Directivas systemd anti-suspensión, hibernación y cierre de tapa. |
+| `02_desactivar_ipv6.sh` | Desactiva IPv6 en el kernel vía `sysctl.d`. |
+| `03_instalar_paquetes_base.sh` | `apt update` e instalación del stack (Apache, PHP 8.4, MariaDB, herramientas). |
+| `04_configurar_usuarios.sh` | Usuario de instalación a `sudo`, crea usuario admin y activa auditoría en `/var/log/sudo.log`. |
+| `05_hardening_ssh.sh` | Hardening de configuración SSH (`sshd_config.d`). |
+| `06_cortafuegos_ufw_f2b.sh` | Reglas de cortafuegos UFW y jaula SSH en Fail2ban. |
+| `07_mariadb.sh` | Securización de MariaDB y privilegios de usuario administrativo. |
+| `08_phpmyadmin.sh` | phpMyAdmin no interactivo, almacenamiento `pmadb` (tablas `pma__*`) y parche Twig. |
+| `09_estructura_web_git.sh` | Carpetas `/var/www/prod` y `stg`, permisos `2775` y repositorios Git locales. |
+| `10_ssl_comodin.sh` | Root CA privada y certificado SAN comodín (`*.dominio` + IP). |
+| `11_apache_php.sh` | VirtualHosts HTTP/HTTPS con redirección 301 y PHP-FPM. |
+| `12_samba_shares.sh` | Recursos compartidos Samba SMBv3 con permisos integrados con `www-data`. |
+| `13_respaldos_cron.sh` | Respaldos rotativos de 7 días (rsync `--link-dest` + volcado MariaDB) y cron. |
+
+### Módulos de limpieza y rollback (`scripts/cleanup/`)
+
+Permiten revertir componentes de forma aislada o en conjunto:
+
+| Script | Propósito |
+| :--- | :--- |
+| `01_detener_servicios.sh` | Detiene servicios web, bases de datos, compartición y firewall. |
+| `02_purgar_paquetes.sh` | Purga APT de todos los paquetes instalados del stack. |
+| `03_eliminar_residuales.sh` | Elimina carpetas y archivos de configuración residuales. |
+| `04_restaurar_sistema.sh` | Restaura IPv6 y reactiva políticas de suspensión del kernel. |
+| `05_eliminar_usuarios.sh` | Elimina usuarios secundarios creados protegiendo la sesión activa. |
 
 ---
 
