@@ -63,7 +63,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $respond = function(bool $success, string $message, string $redirect) use ($isAjax) {
         if ($isAjax) {
             header('Content-Type: application/json; charset=utf-8');
-            echo json_encode(['success' => $success, 'message' => $message]);
+            echo json_encode(['success' => $success, 'message' => mb_convert_encoding($message, 'UTF-8', 'UTF-8')], JSON_INVALID_UTF8_SUBSTITUTE);
             exit;
         } else {
             panel_flash($success ? 'success' : 'error', $message);
