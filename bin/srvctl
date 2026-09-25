@@ -181,6 +181,16 @@ cmd_verify() {
         check "${name} HTTPS responde 200 ($host) [${code}]" test "$code" = "200"
     done
 
+    # --- Acceso por ruta (dual-access) ---------------------------------------------
+    code="$(local_http_code "https://${BASE_DOMAIN}/prod/" --resolve "${BASE_DOMAIN}:443:127.0.0.1")"
+    check "Ruta /prod/ responde 200 (${BASE_DOMAIN}/prod/) [${code}]" test "$code" = "200"
+
+    code="$(curl -sk -o /dev/null -w '%{http_code}' --resolve "${BASE_DOMAIN}:443:127.0.0.1" "https://${BASE_DOMAIN}/prod")"
+    check "Ruta /prod redirige 301 a /prod/ [${code}]" test "$code" = "301"
+
+    code="$(local_http_code "https://${BASE_DOMAIN}/phpmyadmin/" --resolve "${BASE_DOMAIN}:443:127.0.0.1")"
+    check "Ruta /phpmyadmin/ responde 200 (${BASE_DOMAIN}/phpmyadmin/) [${code}]" test "$code" = "200"
+
     # --- Redireccion HTTP -> HTTPS -------------------------------------------------
     for pair in "Dashboard:${BASE_DOMAIN}" "Produccion:${PROD_FQDN}" "Staging:${STG_FQDN}" "phpMyAdmin:${DB_FQDN}"; do
         local name="${pair%%:*}"
@@ -289,7 +299,7 @@ cmd_project_create() {
 <?php header('Content-Type: text/html; charset=UTF-8'); ?>
 <!DOCTYPE html><html><head><meta charset="UTF-8"><title>${name} - ${name}.${BASE_DOMAIN}</title>
 <style>body{font-family:sans-serif;margin:40px;background:#0f172a;color:#f8fafc}.card{background:#1e293b;padding:25px;border-radius:8px;border-left:6px solid #38bdf8;box-shadow:0 2px 5px rgba(0,0,0,0.2)}h1{margin-top:0}.badge{background:#0284c7;color:#fff;padding:4px 8px;border-radius:4px;font-weight:bold}</style></head>
-<body><div class="card"><h1>Servidor Web Nativo - <span class="badge">${name}</span></h1><p><strong>Subdominio:</strong> https://${name}.${BASE_DOMAIN}</p><p><strong>PHP:</strong> <?= phpversion(); ?></p><p><strong>DocumentRoot:</strong> <?= __DIR__; ?></p></div></body></html>
+<body><div class="card"><h1>Servidor Web Nativo - <span class="badge">${name}</span></h1><p><strong>Subdominio:</strong> https://${name}.${BASE_DOMAIN}</p><p><strong>Ruta:</strong> https://${BASE_DOMAIN}/${name}/</p><p><strong>PHP:</strong> <?= phpversion(); ?></p><p><strong>DocumentRoot:</strong> <?= __DIR__; ?></p></div></body></html>
 EOF
     fi
 
