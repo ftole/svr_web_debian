@@ -26,6 +26,7 @@ apply_firewall() {
     ufw allow 445/tcp comment 'Samba SMB' >/dev/null 2>&1 || true
     ufw allow 3389/tcp comment 'GNOME RDP' >/dev/null 2>&1 || true
     ufw --force enable >/dev/null 2>&1 || true
+    systemctl enable --now ufw >/dev/null 2>&1 || true
 
     mkdir -p /etc/fail2ban
     cat > /etc/fail2ban/jail.local <<'EOF'
@@ -48,6 +49,7 @@ disable_firewall() {
     validate_root
     log "[Seguridad] Deshabilitando UFW y deteniendo Fail2ban..."
     ufw --force disable >/dev/null 2>&1 || true
+    systemctl stop ufw >/dev/null 2>&1 || true
     systemctl stop fail2ban >/dev/null 2>&1 || true
     log "            Cortafuegos y Fail2ban deshabilitados."
 }
