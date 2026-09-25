@@ -30,22 +30,49 @@ deploy_dashboard() {
         cp -f "${tpl_dir}/dashboard/not_found.php" "${dash_dir}/not_found.php"
     fi
 
-    # Generar scripts para Windows en downloads
+    # Generar scripts para Windows en downloads con resolucion de hosts inyectada
+    local hosts_calls
+    hosts_calls="$(mktemp)"
+    {
+        echo "call :add_host ${BASE_DOMAIN}"
+        echo "call :add_host ${PROD_FQDN}"
+        echo "call :add_host ${STG_FQDN}"
+        echo "call :add_host ${DB_FQDN}"
+        for d in /var/www/*; do
+            [ -d "$d" ] || continue
+            local b
+            b="$(basename "$d")"
+            case "$b" in
+                html|_*) continue ;;
+            esac
+            echo "call :add_host ${b}.${BASE_DOMAIN}"
+        done
+    } > "${hosts_calls}"
+
     if [ -f "${tpl_dir}/windows/configurar-cliente.bat" ]; then
         sed "s/__SERVER_IP__/${SERVER_IP}/g" \
             "${tpl_dir}/windows/configurar-cliente.bat" > "${dl_dir}/configurar-cliente.bat"
+        sed -i "/__HOSTS_CALLS__/r ${hosts_calls}" "${dl_dir}/configurar-cliente.bat"
+        sed -i "/__HOSTS_CALLS__/d" "${dl_dir}/configurar-cliente.bat"
     fi
 
     if [ -f "${tpl_dir}/windows/configurar-desarrollador.bat" ]; then
         sed -e "s/__SERVER_IP__/${SERVER_IP}/g" \
             -e "s/__ADMIN_USER__/${ADMIN_USER}/g" \
             "${tpl_dir}/windows/configurar-desarrollador.bat" > "${dl_dir}/configurar-desarrollador.bat"
+        sed -i "/__HOSTS_CALLS__/r ${hosts_calls}" "${dl_dir}/configurar-desarrollador.bat"
+        sed -i "/__HOSTS_CALLS__/d" "${dl_dir}/configurar-desarrollador.bat"
     fi
 
-    if [ -f "${tpl_dir}/windows/configurar-desarrollador.ps1" ]; then
-        sed -e "s/__SERVER_IP__/${SERVER_IP}/g" \
-            -e "s/__ADMIN_USER__/${ADMIN_USER}/g" \
-            "${tpl_dir}/windows/configurar-desarrollador.ps1" > "${dl_dir}/configurar-desarrollador.ps1"
+    rm -f "${hosts_calls}"
+    rm -f "${dl_dir}/configurar-desarrollador.ps1"
+
+    # Los .bat deben usar finales de linea CRLF para cmd.exe (labels y goto)
+    if [ -f "${dl_dir}/configurar-cliente.bat" ]; then
+        sed -i 's/$/\r/' "${dl_dir}/configurar-cliente.bat"
+    fi
+    if [ -f "${dl_dir}/configurar-desarrollador.bat" ]; then
+        sed -i 's/$/\r/' "${dl_dir}/configurar-desarrollador.bat"
     fi
 
     # Copiar rootCA si existe
