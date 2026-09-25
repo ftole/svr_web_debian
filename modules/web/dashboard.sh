@@ -23,11 +23,8 @@ deploy_dashboard() {
 
     mkdir -p "${dash_dir}" "${dl_dir}"
 
-    if [ -f "${tpl_dir}/dashboard/index.php" ]; then
-        cp -f "${tpl_dir}/dashboard/index.php" "${dash_dir}/index.php"
-    fi
-    if [ -f "${tpl_dir}/dashboard/not_found.php" ]; then
-        cp -f "${tpl_dir}/dashboard/not_found.php" "${dash_dir}/not_found.php"
+    if [ -d "${tpl_dir}/dashboard" ]; then
+        cp -a "${tpl_dir}/dashboard/." "${dash_dir}/"
     fi
 
     # Generar scripts para Windows en downloads con resolucion de hosts inyectada
