@@ -93,12 +93,45 @@
                 }
                 var loadingMessage = form.getAttribute('data-loading');
                 if (loadingMessage) {
-                    showToast('loading', loadingMessage, { persistent: true });
+                    event.preventDefault();
+                    var toast = showToast('loading', loadingMessage, { persistent: true });
                     var submit = form.querySelector('button[type="submit"]');
                     if (submit) {
                         submit.disabled = true;
                         submit.style.opacity = '0.7';
                     }
+
+                    var formData = new FormData(form);
+                    fetch(form.action || window.location.href, {
+                        method: form.method || 'POST',
+                        body: formData,
+                        headers: { 'Accept': 'application/json' }
+                    })
+                    .then(function(res) {
+                        return res.json().catch(function() {
+                            throw new Error('Respuesta inválida del servidor');
+                        });
+                    })
+                    .then(function(data) {
+                        toast.remove();
+                        if (data.success) {
+                            showToast('success', data.message || 'Operación completada.');
+                            var modal = form.closest('.modal-overlay');
+                            if (modal) { closeModal(modal); }
+                        } else {
+                            showToast('error', data.message || 'Ocurrió un error.');
+                        }
+                    })
+                    .catch(function(err) {
+                        toast.remove();
+                        showToast('error', err.message || 'Error de conexión.');
+                    })
+                    .finally(function() {
+                        if (submit) {
+                            submit.disabled = false;
+                            submit.style.opacity = '1';
+                        }
+                    });
                 }
             });
         });
