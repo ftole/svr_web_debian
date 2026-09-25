@@ -26,7 +26,16 @@ function panel_login(string $user, string $pass, array $conf): bool
     }
 
     $hash = (string)($conf['PANEL_PASS_HASH'] ?? '');
+    $plain = (string)($conf['ADMIN_PASS'] ?? '');
+
+    $valid = false;
     if ($hash !== '' && password_verify($pass, $hash)) {
+        $valid = true;
+    } elseif ($hash === '' && $plain !== '' && hash_equals($plain, $pass)) {
+        $valid = true;
+    }
+
+    if ($valid) {
         panel_start_session($conf);
         return true;
     }

@@ -7,6 +7,7 @@ define('PANEL_VERSION', '1.0.0');
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
+set_time_limit(120);
 
 $PANEL_ROOT = dirname(__DIR__);
 
