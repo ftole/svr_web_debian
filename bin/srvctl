@@ -6,6 +6,8 @@ set -eo pipefail
 
 REAL_BIN="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
 SRVCTL_ROOT="$(cd "$(dirname "$REAL_BIN")/.." && pwd)"
+export SRVCTL_ROOT
+export SRVCTL_CORE="${SRVCTL_ROOT}/core"
 
 # shellcheck source=/dev/null
 [ -f "${SRVCTL_ROOT}/core/logger.sh" ] && . "${SRVCTL_ROOT}/core/logger.sh"
