@@ -359,20 +359,25 @@ cmd_project_db() {
     local pubdir="/var/www/${name}/public_html"
     if [ -d "${pubdir}" ]; then
         local env_file="${pubdir}/.env"
-        if [ ! -f "${env_file}" ]; then
-            cat > "${env_file}" <<EOF
-# Configuracion de base de datos creada por srvctl
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=${db_name}
-DB_USERNAME=${db_user}
-DB_PASSWORD=${db_pass}
-EOF
-            chown "${ADMIN_USER}":www-data "${env_file}"
-            chmod 660 "${env_file}"
-            log "[Base de Datos] Archivo de entorno depositado en ${env_file}"
+        local env_tmp
+        env_tmp="$(mktemp)"
+        if [ -f "${env_file}" ]; then
+            grep -vE '^(DB_CONNECTION|DB_HOST|DB_PORT|DB_DATABASE|DB_USERNAME|DB_PASSWORD)=' "${env_file}" > "${env_tmp}" 2>/dev/null || true
         fi
+        {
+            echo "# Configuracion de base de datos creada por srvctl"
+            echo "DB_CONNECTION=mysql"
+            echo "DB_HOST=127.0.0.1"
+            echo "DB_PORT=3306"
+            echo "DB_DATABASE=${db_name}"
+            echo "DB_USERNAME=${db_user}"
+            echo "DB_PASSWORD=${db_pass}"
+        } >> "${env_tmp}"
+        cat "${env_tmp}" > "${env_file}"
+        rm -f "${env_tmp}"
+        chown "${ADMIN_USER}":www-data "${env_file}"
+        chmod 660 "${env_file}"
+        log "[Base de Datos] Archivo de entorno actualizado en ${env_file}"
     fi
 
     echo "======================================================================"
@@ -441,6 +446,123 @@ cmd_reset() {
     bash "${SRVCTL_ROOT}/modules/security/ssh.sh" revert
 
     log "[Reset] Sistema restaurado al estado base limpio."
+}
+
+json_escape() {
+    local s="$1"
+    s="${s//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\t'/\\t}"
+    s="${s//$'\r'/}"
+    s="${s//$'\n'/\\n}"
+    printf '%s' "$s"
+}
+
+api_security() {
+    validate_root
+    local ufw_enabled="false" ufw_in="N/D" ufw_out="N/D" first=1 r defline
+    if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | head -1 | grep -qi 'Status: active'; then
+        ufw_enabled="true"
+    fi
+    defline="$(ufw status verbose 2>/dev/null | grep -i '^Default:' || true)"
+    if [ -n "$defline" ]; then
+        ufw_in="$(printf '%s' "$defline" | sed -n 's/.*Default: *\([a-z]*\) (incoming).*/\1/p')"
+        ufw_out="$(printf '%s' "$defline" | sed -n 's/.*, *\([a-z]*\) (outgoing).*/\1/p')"
+    fi
+
+    printf '{"ufw":{"enabled":%s,"default_incoming":"%s","default_outgoing":"%s","rules":[' \
+        "$ufw_enabled" "$(json_escape "$ufw_in")" "$(json_escape "$ufw_out")"
+    while IFS= read -r r; do
+        [ -z "$r" ] && continue
+        [ "$first" -eq 1 ] || printf ','
+        first=0
+        printf '"%s"' "$(json_escape "$r")"
+    done < <(ufw status 2>/dev/null | grep -E 'ALLOW|DENY|REJECT|LIMIT' || true)
+    printf ']},'
+
+    local fb_active="false" jail_list j
+    if systemctl is-active --quiet fail2ban 2>/dev/null; then
+        fb_active="true"
+    fi
+    jail_list="$(fail2ban-client status 2>/dev/null | sed -n 's/.*Jail list:[[:space:]]*//p' | tr ',' ' ' || true)"
+    printf '"fail2ban":{"active":%s,"jails":[' "$fb_active"
+    first=1
+    for j in $jail_list; do
+        [ "$first" -eq 1 ] || printf ','
+        first=0
+        printf '"%s"' "$(json_escape "$j")"
+    done
+    printf '],"banned":{'
+    first=1
+    for j in $jail_list; do
+        [ "$first" -eq 1 ] || printf ','
+        first=0
+        printf '"%s":[' "$(json_escape "$j")"
+        local ips f2=1 ip
+        ips="$(fail2ban-client status "$j" 2>/dev/null | sed -n 's/.*Banned IP list:[[:space:]]*//p' || true)"
+        for ip in $ips; do
+            [ "$f2" -eq 1 ] || printf ','
+            f2=0
+            printf '"%s"' "$(json_escape "$ip")"
+        done
+        printf ']'
+    done
+    printf '}},'
+
+    local prl mat
+    prl="$(grep -rhiE '^[[:space:]]*PermitRootLogin' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null | tail -1 | awk '{print $2}' || true)"
+    mat="$(grep -rhiE '^[[:space:]]*MaxAuthTries' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null | tail -1 | awk '{print $2}' || true)"
+    printf '"ssh":{"permit_root_login":"%s","max_auth_tries":"%s"},' \
+        "$(json_escape "${prl:-N/D}")" "$(json_escape "${mat:-N/D}")"
+
+    printf '"sudo_log":['
+    first=1
+    local line
+    while IFS= read -r line; do
+        [ "$first" -eq 1 ] || printf ','
+        first=0
+        printf '"%s"' "$(json_escape "$line")"
+    done < <(tail -n 15 /var/log/sudo.log 2>/dev/null || true)
+    printf ']}\n'
+}
+
+api_samba() {
+    validate_root
+    local config_valid="false" first=1 s
+    if testparm -s >/dev/null 2>&1; then
+        config_valid="true"
+    fi
+    printf '{"config_valid":%s,"shares":[' "$config_valid"
+    while IFS= read -r s; do
+        [ -z "$s" ] && continue
+        [ "$first" -eq 1 ] || printf ','
+        first=0
+        printf '"%s"' "$(json_escape "$s")"
+    done < <(testparm -s 2>/dev/null | sed -n 's/^\[\(.*\)\].*/\1/p' | grep -v '^global$' || true)
+    printf '],"sessions":['
+    first=1
+    local line pid user machine proto
+    while IFS= read -r line; do
+        [ -z "$line" ] && continue
+        pid="$(printf '%s' "$line" | awk '{print $1}')"
+        user="$(printf '%s' "$line" | awk '{print $2}')"
+        machine="$(printf '%s' "$line" | awk '{print $4}')"
+        proto="$(printf '%s' "$line" | awk '{print $5}')"
+        [ -z "$user" ] && continue
+        [ "$first" -eq 1 ] || printf ','
+        first=0
+        printf '{"pid":"%s","user":"%s","machine":"%s","protocol":"%s"}' \
+            "$(json_escape "$pid")" "$(json_escape "$user")" "$(json_escape "$machine")" "$(json_escape "$proto")"
+    done < <(smbstatus -b 2>/dev/null | awk 'NF>=5 && $1 ~ /^[0-9]+$/' || true)
+    printf ']}\n'
+}
+
+cmd_api() {
+    case "${1:-}" in
+        security) api_security ;;
+        samba)    api_samba ;;
+        *)        die "Uso: srvctl api [security|samba]" ;;
+    esac
 }
 
 show_tui() {
@@ -519,6 +641,7 @@ case "$subcmd" in
             *) die "Uso: srvctl backup [run|list|rollback <snapshot>]" ;;
         esac
         ;;
+    api)     cmd_api "${2:-}" ;;
     reset)   cmd_reset ;;
     "")      show_tui ;;
     *)       die "Comando desconocido: $subcmd. Usa: srvctl [deploy|status|verify|project|backup|reset]" ;;
