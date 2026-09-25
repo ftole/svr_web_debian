@@ -31,12 +31,6 @@ function panel_login(string $user, string $pass, array $conf): bool
         return true;
     }
 
-    $plain = (string)($conf['ADMIN_PASS'] ?? '');
-    if ($plain !== '' && hash_equals($plain, $pass)) {
-        panel_start_session($conf);
-        return true;
-    }
-
     return false;
 }
 
