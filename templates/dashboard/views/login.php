@@ -37,7 +37,7 @@
         <h1 class="login-title"><?= e(PANEL_NAME) ?></h1>
         <p class="login-subtitle">Administración del servidor web</p>
         
-        <?php require \ . '/partials/flash.php'; ?>
+        <?php require $PANEL_ROOT . '/partials/flash.php'; ?>
 
         <form method="POST" action="/" class="login-form">
             <input type="hidden" name="action" value="login">
@@ -79,14 +79,14 @@
         const maxDistance = 4;
         const moveX = Math.cos(angle) * maxDistance;
         const moveY = Math.sin(angle) * maxDistance;
-        pupilLeft.style.transform = 	ranslate(+moveX+px, +moveY+px);
-        pupilRight.style.transform = 	ranslate(+moveX+px, +moveY+px);
+        pupilLeft.style.transform = `translate(${moveX}px, ${moveY}px)`;
+        pupilRight.style.transform = `translate(${moveX}px, ${moveY}px)`;
     });
     
     passwordInput.addEventListener('focus', () => {
         isCoveringEyes = true;
-        pupilLeft.style.transform = 	ranslate(0px, 0px);
-        pupilRight.style.transform = 	ranslate(0px, 0px);
+        pupilLeft.style.transform = `translate(0px, 0px)`;
+        pupilRight.style.transform = `translate(0px, 0px)`;
         armLeft.style.transform = 'rotate(135deg) translate(-25px, -15px)';
         armRight.style.transform = 'rotate(-135deg) translate(25px, -15px)';
     });
