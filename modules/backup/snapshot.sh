@@ -32,8 +32,11 @@ BACKUP_DIR="${backup_dir}"
 
 echo "=== Respaldo iniciado: \${DATE_STR} ===" >> "\${LOG_FILE}"
 
-mariadb-dump --all-databases --single-transaction --quick 2>/dev/null | gzip -9 > "\${BACKUP_DIR}/database/db_all_\${DATE_STR}.sql.gz" || true
+if ! mariadb-dump --all-databases --single-transaction --quick | gzip -9 > "\${BACKUP_DIR}/database/db_all_\${DATE_STR}.sql.gz"; then
+    echo "ERROR: Falló el respaldo de bases de datos MariaDB" >> "\${LOG_FILE}"
+fi
 find "\${BACKUP_DIR}/database" -type f -name "db_all_*.sql.gz" -mtime +7 -delete 2>/dev/null || true
+
 
 if [ -d "\${BACKUP_DIR}/snapshots/daily.6" ]; then rm -rf "\${BACKUP_DIR}/snapshots/daily.6"; fi
 for i in 5 4 3 2 1 0; do

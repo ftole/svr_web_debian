@@ -80,12 +80,15 @@ deploy_dashboard() {
     # Wrapper seguro para evitar comodines en sudoers
     cat > /usr/local/bin/srvctl-web-wrapper <<'EOF'
 #!/bin/bash
+set -euo pipefail
 # Wrapper seguro para invocar srvctl desde PHP
-read -r ACTION TARGET EXTRA <<< "$SRVCTL_CMD"
+read -r ACTION TARGET EXTRA <<< "${SRVCTL_CMD:-}"
 case "$ACTION" in
     "project")
-        if [[ "$TARGET" =~ ^(create|delete|db)$ ]] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-            exec /usr/local/bin/srvctl project "$TARGET" "$EXTRA"
+        if [[ "$TARGET" =~ ^(create|delete|db)$ ]] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_\ -]+$ ]]; then
+            # Se permite la expansión de $EXTRA (sin comillas) porque ya fue validado por una regex estricta
+            # Esto permite pasar comandos como: project db <proyecto> <bd_personalizada>
+            exec /usr/local/bin/srvctl project "$TARGET" $EXTRA
         fi
         ;;
     "backup")
