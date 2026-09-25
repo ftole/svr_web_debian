@@ -4,11 +4,11 @@
 # ==============================================================================
 set -eo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
-[ -f "${SCRIPT_DIR}/logger.sh" ] && . "${SCRIPT_DIR}/logger.sh"
+[ -f "${CORE_DIR}/logger.sh" ] && . "${CORE_DIR}/logger.sh"
 # shellcheck source=/dev/null
-[ -f "${SCRIPT_DIR}/validator.sh" ] && . "${SCRIPT_DIR}/validator.sh"
+[ -f "${CORE_DIR}/validator.sh" ] && . "${CORE_DIR}/validator.sh"
 
 CONF_FILE="${CONF_FILE:-/etc/srvctl.conf}"
 LEGACY_CONF="/etc/asistente_servidor.conf"
