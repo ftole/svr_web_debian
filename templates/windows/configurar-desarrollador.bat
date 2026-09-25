@@ -17,7 +17,6 @@ if %errorLevel% neq 0 (
 
 set "SERVER_IP=__SERVER_IP__"
 set "ADMIN_USER=__ADMIN_USER__"
-set "ADMIN_PASS=__ADMIN_PASS__"
 set "SHARE=\\%SERVER_IP%\proyectos"
 set "CERT_TMP=%TEMP%\rootCA.crt"
 
@@ -25,6 +24,13 @@ echo ===========================================================================
 echo    CONFIGURACION DEL ENTORNO DE DESARROLLADOR - %SERVER_IP%
 echo ==============================================================================
 echo.
+
+if not defined ADMIN_PASS set /p "ADMIN_PASS=Contrasena de %ADMIN_USER%@%SERVER_IP%: "
+if not defined ADMIN_PASS (
+    echo [ERROR] Debes indicar la contrasena del usuario %ADMIN_USER% para continuar.
+    pause
+    exit /b 1
+)
 
 echo [1/5] Instalando Certificado SSL Raiz...
 if exist "%CERT_TMP%" del "%CERT_TMP%" >nul 2>&1
