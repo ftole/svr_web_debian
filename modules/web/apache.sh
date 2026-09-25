@@ -60,11 +60,52 @@ EOF
     SSLEngine on
     SSLCertificateFile /etc/ssl/localcerts/webserver.crt
     SSLCertificateKeyFile /etc/ssl/localcerts/webserver.key
+
+    # Acceso web a phpMyAdmin por ruta en dominio base e IP
+    Alias /phpmyadmin /usr/share/phpmyadmin
+    Alias /${DB_SUB} /usr/share/phpmyadmin
+    <Directory /usr/share/phpmyadmin>
+        Options FollowSymLinks
+        DirectoryIndex index.php
+        AllowOverride All
+        Require all granted
+        <FilesMatch \.php$>
+            SetHandler "proxy:unix:/run/php/php${PHP_VER}-fpm.sock|fcgi://localhost"
+        </FilesMatch>
+    </Directory>
+
     <Directory /var/www/_dashboard>
         Options FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
+
+    # Compatibilidad de acceso a proyectos por ruta: https://${BASE_DOMAIN}/<proyecto>/
+    <Directory /var/www/*/public_html>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+        DirectoryIndex index.php index.html
+        <FilesMatch \.php$>
+            SetHandler "proxy:unix:/run/php/php${PHP_VER}-fpm.sock|fcgi://localhost"
+        </FilesMatch>
+    </Directory>
+
+    RewriteEngine On
+
+    # Forzar barra final en proyectos existentes para preservar rutas relativas
+    RewriteCond %{REQUEST_URI} ^/([a-zA-Z0-9_-]+)$
+    RewriteCond /var/www/%1/public_html -d
+    RewriteRule ^/([a-zA-Z0-9_-]+)$ /\$1/ [R=301,L]
+
+    # Mapear /<proyecto>/ hacia /var/www/<proyecto>/public_html/
+    RewriteCond %{REQUEST_URI} !^/(app|assets|downloads|partials|views|not_found\.php|phpmyadmin|${DB_SUB}) [NC]
+    RewriteCond %{REQUEST_URI} ^/([a-zA-Z0-9_-]+)(?:/(.*))?$
+    RewriteCond /var/www/%1/public_html -d
+    RewriteRule ^/([a-zA-Z0-9_-]+)(?:/(.*))?$ /var/www/\$1/public_html/\$2 [L]
+
+    ErrorDocument 404 /not_found.php
+
     <FilesMatch \.php$>
         SetHandler "proxy:unix:/run/php/php${PHP_VER}-fpm.sock|fcgi://localhost"
     </FilesMatch>
