@@ -12,8 +12,8 @@ Con **srvctl**, todo ese trabajo pesado desaparece:
 
 1. **Tu servidor como una carpeta más en Windows (`Z:\`):** Mediante la red compartida Samba `[proyectos]`, tu servidor se monta en tu computadora como la unidad `Z:\`. Guardas un archivo en tu editor de código favorito (VS Code, PhpStorm, Notepad++) y se actualiza al instante en el servidor.
 2. **Subdominios automáticos sin configuración:** Cualquier carpeta que pongas en `Z:\nombre\public_html` se convierte inmediatamente en el sitio web `https://nombre.empresa.local`, con certificado SSL válido y PHP 8.4 listo para procesar.
-3. **Página central de bienvenida y salud:** Si escribes el dominio principal (`https://empresa.local`), verás un panel visual que te muestra en tiempo real cuánta memoria RAM se está usando, el espacio libre en disco, el estado de los servicios y enlaces de descarga de herramientas.
-4. **Base de datos con 1 solo comando:** Con `srvctl project db <nombre>` se crea la base de datos, el usuario, la contraseña aleatoria y el archivo `.env` listo para tu proyecto.
+3. **Panel Web de Control y Administración:** En el dominio principal (`https://empresa.local`), cuentas con un Centro de Control interactivo donde puedes iniciar sesión para crear proyectos, aprovisionar bases de datos con un clic, ejecutar diagnósticos completos en vivo, generar respaldos y monitorear el consumo de memoria y disco.
+4. **Base de datos con 1 solo comando:** Con `srvctl project db <nombre>` o desde el panel web, se crea la base de datos, el usuario, la contraseña aleatoria y el archivo `.env` listo para tu proyecto.
 
 ---
 
@@ -103,6 +103,12 @@ Si prefieres usar la consola, el asistente `srvctl` hace todo por ti:
 sudo srvctl project create tienda
 ```
 Esto crea la carpeta, genera un archivo `index.php` de bienvenida con diseño moderno, configura los permisos correctos e inicializa un repositorio Git local.
+
+### Opción C (Desde el Panel Web de Control):
+1. Ingresa a `https://empresa.local` desde tu navegador.
+2. Haz clic en **Iniciar Sesión Administrativa** e ingresa tus credenciales.
+3. En la sección **Crear Nuevo Proyecto**, escribe el nombre y haz clic en **Crear Proyecto**.
+4. ¡Listo! El proyecto queda publicado inmediatamente con su URL `https://nombre.empresa.local`.
 
 ### ¿Cómo crear una Base de Datos para tu proyecto?
 Casi todo sitio web requiere base de datos. Para no perder tiempo creando tablas y usuarios a mano, ejecuta:
