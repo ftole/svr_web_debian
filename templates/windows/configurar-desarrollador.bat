@@ -2,7 +2,7 @@
 setlocal EnableDelayedExpansion
 :: ==============================================================================
 :: configurar-desarrollador.bat - Configuracion completa para Desarrolladores Windows
-:: Mapeo SMB Dinamico + Credenciales + Confianza SSL + EnableLinkedConnections + SSH
+:: Resolucion hosts + Confianza SSL + EnableLinkedConnections + SMB + SSH
 :: Ejecutar como ADMINISTRADOR en Windows
 :: ==============================================================================
 title Configuracion de Desarrollador
@@ -17,6 +17,7 @@ if %errorLevel% neq 0 (
 
 set "SERVER_IP=__SERVER_IP__"
 set "ADMIN_USER=__ADMIN_USER__"
+set "HOSTS=%SystemRoot%\System32\drivers\etc\hosts"
 set "SHARE=\\%SERVER_IP%\proyectos"
 set "CERT_TMP=%TEMP%\rootCA.crt"
 
@@ -50,18 +51,21 @@ if exist "%CERT_TMP%" (
     echo       [WARN] No se pudo descargar automaticamente el certificado.
 )
 
-echo [2/5] Habilitando visibilidad de unidades mapeadas [EnableLinkedConnections]...
+echo [2/6] Inyectando resolucion de nombres en el archivo hosts...
+:: __HOSTS_CALLS__
+
+echo [3/6] Habilitando visibilidad de unidades mapeadas [EnableLinkedConnections]...
 reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLinkedConnections /t REG_DWORD /d 1 /f >nul
 echo       [OK] Registro de Windows configurado [EnableLinkedConnections=1].
 
-echo [3/5] Configurando credenciales y purgando conexiones SMB previas...
+echo [4/6] Configurando credenciales y purgando conexiones SMB previas...
 net use "\\%SERVER_IP%" /delete /y >nul 2>&1
 net use "\\%SERVER_IP%\proyectos" /delete /y >nul 2>&1
 net use "\\%SERVER_IP%\*" /delete /y >nul 2>&1
 cmdkey /add:%SERVER_IP% /user:%ADMIN_USER% /pass:%ADMIN_PASS% >nul 2>&1
 echo       [OK] Credenciales registradas en Windows [cmdkey] para %SERVER_IP%.
 
-echo [4/5] Mapeando unidad de red hacia %SHARE%...
+echo [5/6] Mapeando unidad de red hacia %SHARE%...
 set "MOUNTED_LETTER="
 for %%D in (Z Y X W V U T) do (
     if not defined MOUNTED_LETTER (
@@ -92,7 +96,7 @@ if defined MOUNTED_LETTER (
     echo              Puedes acceder directamente desde el Explorador en: %SHARE%
 )
 
-echo [5/5] Configurando llave SSH y alias 'web'...
+echo [6/6] Configurando llave SSH y alias 'web'...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$sshDir = \"$env:USERPROFILE\.ssh\"; if (!(Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir -Force | Out-Null }; $keyFile = \"$sshDir\id_ed25519_web\"; if (!(Test-Path $keyFile)) { ssh-keygen -t ed25519 -f $keyFile -N '\"\"' -q }; $sshConfig = \"$sshDir\config\"; $entry = \"`nHost web`n    HostName %SERVER_IP%`n    User %ADMIN_USER%`n    IdentityFile ~/.ssh/id_ed25519_web`n    ServerAliveInterval 60`n\"; if (Test-Path $sshConfig) { $c = Get-Content $sshConfig -Raw; if ($c -notmatch \"Host web\b\") { Add-Content -Path $sshConfig -Value $entry } } else { Set-Content -Path $sshConfig -Value $entry }" <nul >nul 2>&1
 echo       [OK] Alias SSH configurado (usa 'ssh web' desde cualquier terminal).
 
@@ -134,3 +138,15 @@ echo  - Certificado TLS: Confiable y validado
 echo ==============================================================================
 echo.
 pause
+exit /b
+
+:add_host
+attrib -r "%HOSTS%" >nul 2>&1
+findstr /i /c:"%SERVER_IP% %~1" "%HOSTS%" >nul 2>&1
+if errorlevel 1 (
+    >>"%HOSTS%" echo %SERVER_IP% %~1
+    echo       [OK] hosts: %~1 -^> %SERVER_IP%
+) else (
+    echo       [INFO] hosts ya contiene %~1
+)
+exit /b
