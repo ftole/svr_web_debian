@@ -77,18 +77,49 @@ deploy_dashboard() {
     find "${dash_dir}" -type d -exec chmod 2775 {} \;
     find "${dash_dir}" -type f -exec chmod 0664 {} \;
 
-    # Regla sudoers limpia para que la interfaz web (www-data) ejecute srvctl sin contrasena
+    # Regla sudoers de minimo privilegio: solo los subcomandos que usa el panel
     mkdir -p /etc/sudoers.d
     cat > /etc/sudoers.d/srvctl-web <<'EOF'
-www-data ALL=(ALL) NOPASSWD: /usr/local/bin/srvctl
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/srvctl project create *, \
+                               /usr/local/bin/srvctl project db *, \
+                               /usr/local/bin/srvctl project delete *, \
+                               /usr/local/bin/srvctl backup run, \
+                               /usr/local/bin/srvctl backup rollback *, \
+                               /usr/local/bin/srvctl verify, \
+                               /usr/local/bin/srvctl api security, \
+                               /usr/local/bin/srvctl api samba, \
+                               /usr/local/bin/srvctl api database
 EOF
     chmod 0440 /etc/sudoers.d/srvctl-web
 
-    # Asegurar permisos de lectura para el grupo www-data en la configuracion
+    # Configuracion dedicada del panel: solo lectura para www-data y sin contrasena maestra
+    local panel_conf="/etc/srvctl-panel.conf"
+    local pass_hash
+    pass_hash="$(SRVCTL_PANEL_PW="${ADMIN_PASS}" php -r 'echo password_hash((string)getenv("SRVCTL_PANEL_PW"), PASSWORD_DEFAULT);' 2>/dev/null || true)"
+    (
+        umask 027
+        cat > "$panel_conf" <<EOF
+# Configuracion del Panel de Control (solo lectura para www-data)
+SERVER_IP='${SERVER_IP}'
+BASE_DOMAIN='${BASE_DOMAIN}'
+PROD_SUB='${PROD_SUB}'
+STG_SUB='${STG_SUB}'
+DB_SUB='${DB_SUB}'
+PROD_FQDN='${PROD_FQDN}'
+STG_FQDN='${STG_FQDN}'
+DB_FQDN='${DB_FQDN}'
+ADMIN_USER='${ADMIN_USER}'
+PANEL_PASS_HASH='${pass_hash}'
+EOF
+    )
+    chown root:www-data "$panel_conf" 2>/dev/null || true
+    chmod 640 "$panel_conf" 2>/dev/null || true
+
+    # La configuracion maestra queda accesible unicamente para root
     for cfg in /etc/srvctl.conf /etc/asistente_servidor.conf; do
         if [ -f "$cfg" ]; then
-            chgrp www-data "$cfg" 2>/dev/null || true
-            chmod 640 "$cfg" 2>/dev/null || true
+            chown root:root "$cfg" 2>/dev/null || true
+            chmod 600 "$cfg" 2>/dev/null || true
         fi
     done
 
