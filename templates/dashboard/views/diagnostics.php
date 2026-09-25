@@ -4,7 +4,7 @@ $verify = $_SESSION['verify_result'] ?? null;
 <section class="card">
     <div class="card-head">
         <h2>Diagnóstico del servidor</h2>
-        <form method="POST" action="?page=diagnostics">
+        <form method="POST" action="/" data-loading="Ejecutando diagnóstico…">
             <input type="hidden" name="action" value="verify">
             <input type="hidden" name="_page" value="diagnostics">
             <?= panel_csrf_field() ?>
@@ -19,7 +19,12 @@ $verify = $_SESSION['verify_result'] ?? null;
                 <span class="tag tag-err"><?= (int)$verify['fail'] ?> fallos</span>
             <?php endif; ?>
             <span class="muted"><?= e($verify['timestamp']) ?></span>
-            <a class="btn btn-outline btn-sm" href="?action=clear_verify">Limpiar</a>
+            <form method="POST" action="/" style="display:inline;">
+                <input type="hidden" name="action" value="clear_verify">
+                <input type="hidden" name="_page" value="diagnostics">
+                <?= panel_csrf_field() ?>
+                <button type="submit" class="btn btn-outline btn-sm">Limpiar</button>
+            </form>
         </div>
         <pre class="terminal"><?php
             foreach (explode("\n", (string)$verify['output']) as $line) {
