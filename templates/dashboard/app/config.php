@@ -7,7 +7,7 @@ if (!defined('PANEL')) {
 
 function panel_load_config(): array
 {
-    $files = ['/etc/srvctl.conf', '/etc/asistente_servidor.conf'];
+    $files = ['/etc/srvctl-panel.conf', '/etc/srvctl.conf', '/etc/asistente_servidor.conf'];
     $conf = [];
     foreach ($files as $file) {
         if (!is_file($file) || !is_readable($file)) {
@@ -28,13 +28,14 @@ function panel_load_config(): array
     }
 
     $defaults = [
-        'SERVER_IP'   => (string)($_SERVER['SERVER_ADDR'] ?? '127.0.0.1'),
-        'BASE_DOMAIN' => 'empresa.local',
-        'PROD_SUB'    => 'prod',
-        'STG_SUB'     => 'stg',
-        'DB_SUB'      => 'webdev',
-        'ADMIN_USER'  => 'webadmin',
-        'ADMIN_PASS'  => 'Temp123#',
+        'SERVER_IP'      => (string)($_SERVER['SERVER_ADDR'] ?? '127.0.0.1'),
+        'BASE_DOMAIN'    => 'empresa.local',
+        'PROD_SUB'       => 'prod',
+        'STG_SUB'        => 'stg',
+        'DB_SUB'         => 'webdev',
+        'ADMIN_USER'     => 'webadmin',
+        'ADMIN_PASS'     => '',
+        'PANEL_PASS_HASH' => '',
     ];
     foreach ($defaults as $key => $value) {
         if (!isset($conf[$key]) || $conf[$key] === '') {
