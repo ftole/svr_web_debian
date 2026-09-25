@@ -191,6 +191,19 @@
         });
     }
 
+    function bindPasswordToggles() {
+        document.querySelectorAll('[data-toggle-password]:not([data-bound])').forEach(function (button) {
+            button.setAttribute('data-bound', '1');
+            button.addEventListener('click', function () {
+                var input = document.getElementById(button.getAttribute('data-toggle-password'));
+                if (!input) { return; }
+                var show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                button.setAttribute('aria-label', show ? 'Ocultar contraseña' : 'Mostrar contraseña');
+            });
+        });
+    }
+
     function panelBind() {
         bindToasts();
         bindNav();
@@ -199,6 +212,7 @@
         bindDelete();
         bindToggles();
         bindCopy();
+        bindPasswordToggles();
     }
     window.panelBind = panelBind;
 
