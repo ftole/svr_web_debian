@@ -21,9 +21,9 @@ install_redis() {
     apt-get update -y >/dev/null
     apt-get install -y redis-server php-redis >/dev/null
 
-    # Asegurar que escuche exclusivamente en loopback local
+    # Asegurar que escuche exclusivamente en loopback local IPv4
     if [ -f /etc/redis/redis.conf ]; then
-        sed -i 's/^bind .*/bind 127.0.0.1 ::1/' /etc/redis/redis.conf
+        sed -i 's/^bind .*/bind 127.0.0.1/' /etc/redis/redis.conf
     fi
 
     systemctl enable --now redis-server >/dev/null 2>&1 || true
