@@ -59,6 +59,21 @@ deploy_dashboard() {
     find "${dash_dir}" -type d -exec chmod 2775 {} \;
     find "${dash_dir}" -type f -exec chmod 0664 {} \;
 
+    # Regla sudoers limpia para que la interfaz web (www-data) ejecute srvctl sin contrasena
+    mkdir -p /etc/sudoers.d
+    cat > /etc/sudoers.d/srvctl-web <<'EOF'
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/srvctl
+EOF
+    chmod 0440 /etc/sudoers.d/srvctl-web
+
+    # Asegurar permisos de lectura para el grupo www-data en la configuracion
+    for cfg in /etc/srvctl.conf /etc/asistente_servidor.conf; do
+        if [ -f "$cfg" ]; then
+            chgrp www-data "$cfg" 2>/dev/null || true
+            chmod 640 "$cfg" 2>/dev/null || true
+        fi
+    done
+
     log "      Dashboard desplegado en /var/www/_dashboard/."
 }
 
