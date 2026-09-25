@@ -37,7 +37,7 @@ function panel_services(): array
 function panel_overview(array $conf): array
 {
     $hostname = gethostname() ?: 'servidor';
-    $kernel = trim((string)@shell_exec('uname -r'));
+    $kernel = function_exists('shell_exec') ? trim((string)shell_exec('uname -r')) : '';
     $os = 'Debian GNU/Linux';
     if (is_readable('/etc/os-release')) {
         $release = parse_ini_file('/etc/os-release') ?: [];
@@ -48,7 +48,7 @@ function panel_overview(array $conf): array
 
     $uptime = 0;
     if (is_readable('/proc/uptime')) {
-        $raw = (string)@file_get_contents('/proc/uptime');
+        $raw = (string)file_get_contents('/proc/uptime');
         $uptime = (int)floatval(explode(' ', $raw)[0] ?? 0);
     }
     $days = intdiv($uptime, 86400);
@@ -60,7 +60,7 @@ function panel_overview(array $conf): array
     $memTotal = 0;
     $memAvailable = 0;
     if (is_readable('/proc/meminfo')) {
-        $meminfo = (string)@file_get_contents('/proc/meminfo');
+        $meminfo = (string)file_get_contents('/proc/meminfo');
         if (preg_match('/MemTotal:\s+(\d+)/', $meminfo, $m)) {
             $memTotal = (int)$m[1] * 1024;
         }
@@ -71,8 +71,18 @@ function panel_overview(array $conf): array
     $memUsed = max(0, $memTotal - $memAvailable);
     $memPercent = $memTotal > 0 ? (int)round($memUsed / $memTotal * 100) : 0;
 
-    $diskTotal = (float)(@disk_total_space('/') ?: 0);
-    $diskFree = (float)(@disk_free_space('/') ?: 0);
+    $diskTotal = 0.0;
+    $diskFree = 0.0;
+    try {
+        if (function_exists('disk_total_space')) {
+            $dt = disk_total_space('/');
+            if ($dt !== false) $diskTotal = (float)$dt;
+        }
+        if (function_exists('disk_free_space')) {
+            $df = disk_free_space('/');
+            if ($df !== false) $diskFree = (float)$df;
+        }
+    } catch (\Throwable $e) {}
     $diskUsed = max(0, $diskTotal - $diskFree);
     $diskPercent = $diskTotal > 0 ? (int)round($diskUsed / $diskTotal * 100) : 0;
 
@@ -101,7 +111,8 @@ function panel_projects(array $conf): array
     if (!is_dir($www)) {
         return [];
     }
-    $items = @scandir($www) ?: [];
+    $items = is_readable($www) ? scandir($www) : [];
+    if ($items === false) { $items = []; }
     $projects = [];
     foreach ($items as $item) {
         if ($item === '.' || $item === '..' || $item === 'html' || str_starts_with($item, '_')) {
@@ -126,7 +137,7 @@ function panel_projects(array $conf): array
         $hasDb = is_file($envFile);
         $dbName = '';
         if ($hasDb) {
-            $envTxt = (string)@file_get_contents($envFile);
+            $envTxt = is_readable($envFile) ? (string)file_get_contents($envFile) : '';
             if (preg_match('/DB_DATABASE=([^\r\n]+)/', $envTxt, $m)) {
                 $dbName = trim($m[1]);
             }
@@ -141,7 +152,8 @@ function panel_projects(array $conf): array
             $size = explode("\t", trim($duOut))[0];
         }
 
-        $mtime = @filemtime($docRoot) ?: 0;
+        $mtime = file_exists($docRoot) ? filemtime($docRoot) : 0;
+        if ($mtime === false) { $mtime = 0; }
         $projects[] = [
             'name'       => $item,
             'fqdn'       => $item . '.' . $conf['BASE_DOMAIN'],
@@ -185,12 +197,15 @@ function panel_backups(): array
     }
     $snapDir = $dir . '/snapshots';
     if (is_dir($snapDir)) {
-        foreach (@scandir($snapDir) ?: [] as $entry) {
+        $snapItems = is_readable($snapDir) ? scandir($snapDir) : [];
+        if ($snapItems === false) { $snapItems = []; }
+        foreach ($snapItems as $entry) {
             if (!str_starts_with($entry, 'daily.')) {
                 continue;
             }
             $path = $snapDir . '/' . $entry;
-            $mtime = @filemtime($path) ?: 0;
+            $mtime = file_exists($path) ? filemtime($path) : 0;
+            if ($mtime === false) { $mtime = 0; }
             $snapshots[] = [
                 'name'  => $entry,
                 'date'  => $mtime > 0 ? date('Y-m-d H:i', $mtime) : 'N/D',
@@ -201,15 +216,20 @@ function panel_backups(): array
     }
     $dbDir = $dir . '/database';
     if (is_dir($dbDir)) {
-        foreach (@scandir($dbDir) ?: [] as $entry) {
+        $dbItems = is_readable($dbDir) ? scandir($dbDir) : [];
+        if ($dbItems === false) { $dbItems = []; }
+        foreach ($dbItems as $entry) {
             if (!str_ends_with($entry, '.sql.gz')) {
                 continue;
             }
             $path = $dbDir . '/' . $entry;
-            $mtime = @filemtime($path) ?: 0;
+            $mtime = file_exists($path) ? filemtime($path) : 0;
+            if ($mtime === false) { $mtime = 0; }
+            $fsize = file_exists($path) ? filesize($path) : 0;
+            if ($fsize === false) { $fsize = 0; }
             $dumps[] = [
                 'name' => $entry,
-                'size' => panel_format_bytes((int)(@filesize($path) ?: 0)),
+                'size' => panel_format_bytes((int)$fsize),
                 'date' => $mtime > 0 ? date('Y-m-d H:i', $mtime) : 'N/D',
                 'time' => $mtime,
             ];
@@ -235,7 +255,8 @@ function panel_ssl(): array
         'ca_path'     => $caFile,
     ];
     if ($info['exists']) {
-        $parsed = openssl_x509_parse((string)@file_get_contents($certFile));
+        $certContent = is_readable($certFile) ? file_get_contents($certFile) : false;
+        $parsed = $certContent !== false ? openssl_x509_parse((string)$certContent) : false;
         if (is_array($parsed)) {
             $info['subject'] = (string)($parsed['subject']['CN'] ?? '');
             $info['issuer'] = (string)($parsed['issuer']['CN'] ?? '');
