@@ -117,7 +117,9 @@ cmd_verify() {
     load_config
     local PHP_VER
     PHP_VER="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null || echo "8.4")"
-    [ -z "$PHP_VER" ] && PHP_VER="8.4"
+    if [ -z "$PHP_VER" ]; then
+        PHP_VER="8.4"
+    fi
 
     local PASS=0
     local FAIL=0
