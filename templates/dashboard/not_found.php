@@ -5,7 +5,7 @@ http_response_code(404);
 
 $subdomain = $_SERVER['HTTP_HOST'] ?? 'subdominio';
 $baseDomain = 'empresa.local';
-foreach (['/etc/srvctl.conf', '/etc/asistente_servidor.conf'] as $file) {
+foreach (['/etc/srvctl-panel.conf', '/etc/srvctl.conf', '/etc/asistente_servidor.conf'] as $file) {
     if (is_file($file) && is_readable($file)) {
         foreach (@file($file, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
             if (str_starts_with(trim($line), 'BASE_DOMAIN=')) {
