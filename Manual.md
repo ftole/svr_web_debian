@@ -65,6 +65,12 @@ Si estás en una red doméstica simple sin acceso al router ni DNS central, pued
 10.1.0.4    tienda.empresa.local
 ```
 
+### Opción 5: Acceso directo por ruta (Sin configuración de DNS adicional)
+Si solo tienes configurado el dominio base en tu archivo `hosts` o prefieres acceder directamente por la dirección IP de tu servidor (por ejemplo `https://10.1.0.4/`), la plataforma cuenta con soporte nativo de **acceso web dual**:
+- Puedes abrir cualquier proyecto accediendo a: `https://empresa.local/<nombre-del-proyecto>/` o `https://10.1.0.4/<nombre-del-proyecto>/`
+- Puedes acceder a phpMyAdmin desde: `https://empresa.local/phpmyadmin/` o `https://10.1.0.4/phpmyadmin/`
+- El servidor redirige automáticamente cualquier acceso sin barra final (por ejemplo `/tienda` hacia `/tienda/`) para que los recursos estáticos (CSS, JS, imágenes) funcionen sin cambios en tu código.
+
 ---
 
 ## 3. Puesta en marcha en 3 minutos
