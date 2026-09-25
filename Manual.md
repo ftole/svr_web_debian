@@ -26,6 +26,8 @@ Para que tu computadora sepa que `tienda.empresa.local`, `blog.empresa.local` o 
 
 > [!TIP]
 > Si tu red no cuenta con un servidor DNS, los scripts `.bat` de aprovisionamiento (Sección 3) inyectan automáticamente los dominios estándar y los proyectos existentes en el archivo `hosts` de Windows. Basta con ejecutar el `.bat` como administrador.
+>
+> Si un antivirus (por ejemplo, Kaspersky) o Smart App Control bloquea la escritura, el propio script mostrará las líneas exactas para agregarlas manualmente en `C:\Windows\System32\drivers\etc\hosts`.
 
 ### Opción 1 (Recomendada): Servidor DNS Pi-hole
 Si cuentas con un servidor Pi-hole en tu red local, es la opción más sencilla ya que resuelve automáticamente cualquier subdominio actual y futuro para todos los dispositivos de la red.
