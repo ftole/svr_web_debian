@@ -46,9 +46,9 @@
 | **Cache y Memoria** | Redis Server local + extension PHP `php-redis` |
 | **Base de Datos** | MariaDB 11.8 con acceso administrativo dual (`localhost` y `127.0.0.1`) |
 | **Panel de BD** | phpMyAdmin 5.x sobre subdominio dedicado, sin advertencias de almacenamiento |
-| **Dashboard de Salud** | Panel web en el dominio base (`https://empresa.local`) con telemetria en vivo |
+| **Panel y Control Web** | Panel de administracion y salud en el dominio base (`https://empresa.local`) con creacion de proyectos, aprovisionamiento de BD, diagnosticos y telemetria en vivo |
 | **Subdominios Dinamicos** | Creacion instantanea de proyectos en `/var/www/<proyecto>/public_html` |
-| **Comparticion de Archivos**| Recurso unico Samba SMBv3 `[proyectos]` montado en `Z:\` |
+| **Comparticion de Archivos**| Recurso unico Samba SMBv3 `[proyectos]` con mapeo resiliente (`Z:\` a `T:\`) |
 | **Seguridad de Red** | UFW (puertos 22, 80, 443, 445, 3389) + Fail2ban |
 | **Certificados TLS** | CA raiz interna + certificado comodin SAN (`*.empresa.local` + base + IP) |
 | **Auditoria y Respaldo** | Registro de comandos en `/var/log/sudo.log` y respaldos rotativos de 7 dias |
@@ -233,6 +233,7 @@ srvctl [comando] [argumentos]
 | `srvctl verify` | Ejecuta la suite de diagnostico profundo y auto-verificacion (40 comprobaciones) |
 | `srvctl project create <nombre>` | Crea la estructura base para un nuevo proyecto (`public_html/index.php`) |
 | `srvctl project db <nombre>` | Crea base de datos MariaDB, usuario, clave segura y genera archivo `.env` |
+| `srvctl project delete <nombre>` | Elimina un proyecto web de `/var/www/` y su base de datos asociada |
 | `srvctl project list` | Lista los proyectos activos detectados en `/var/www` |
 | `srvctl backup` | Ejecuta un respaldo manual inmediato de base de datos y archivos web |
 | `srvctl reset` | Revierte el servidor al estado base limpio (rollback seguro) |
