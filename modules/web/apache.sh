@@ -192,7 +192,7 @@ EOF
     RewriteEngine On
     RewriteCond %{HTTP_HOST} ^([a-zA-Z0-9-]+)\.${BASE_DOMAIN}$ [NC]
     RewriteCond /var/www/%1/public_html !-d
-    RewriteRule ^ /not_found.php [L]
+    RewriteRule ^ /not_found.php [L,PT]
 
     Alias /not_found.php /var/www/_dashboard/not_found.php
     <Directory /var/www/_dashboard>
