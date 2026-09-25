@@ -1,0 +1,12 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(app|views|partials)/ - [F,L]
+</IfModule>
+
+<FilesMatch "\.(php|inc)$">
+    <If "%{REQUEST_URI} =~ m#^/(app|views|partials)/#">
+        Require all denied
+    </If>
+</FilesMatch>
