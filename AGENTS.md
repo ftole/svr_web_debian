@@ -29,7 +29,7 @@ Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.
 | `modules/web/` | Autoridad CA raiz y SSL comodin SAN, VirtualHosts de Apache (`mod_vhost_alias`) y Dashboard de salud. |
 | `modules/share/` | Servidor Samba SMBv3 con recurso unificado `[proyectos]` sobre `/var/www`. |
 | `modules/backup/` | Sistema de respaldos diarios por snapshots rotativos de 7 dias y volcados SQL. |
-| `templates/dashboard/` | Codigo fuente del panel de salud y monitor del dominio base (`index.php`, `not_found.php`). |
+| `templates/dashboard/` | Codigo fuente del centro de administracion web, control y salud (`index.php`, `not_found.php`). |
 | `templates/windows/` | Scripts de aprovisionamiento en 1 clic para clientes (`configurar-cliente.bat`, `configurar-desarrollador.bat`, `.ps1`). |
 | `tests/test_validator.sh` | Suite de pruebas unitarias automatizadas y chaos testing de validacion de entradas. |
 | `install.sh` | Bootstrap de instalacion via `curl`: descarga a `/opt/srvctl` y enlaza el CLI global. |
@@ -106,7 +106,7 @@ Comprobar: `gh run list --limit 3`.
 
 1. **Resolución DNS Delegada (Pi-hole u homólogos):** Debian no aloja servicio DNS para mantener la máxima ligereza. La resolución de cualquier subdominio nuevo se delega preferentemente a un servidor Pi-hole mediante `address=/.empresa.local/<IP>`, o bien mediante router local (dnsmasq/MikroTik/pfSense), dominio público con comodín o archivo hosts.
 2. **Subdominios dinámicos sin reinicios:** Apache utiliza `VirtualDocumentRoot /var/www/%1/public_html`. Si el directorio no existe, un `RewriteCond` deriva limpiamente a `/not_found.php` entregando HTTP 404 amigable.
-3. **Dominio Base Desacoplado:** El dominio base (`https://empresa.local`) sirve exclusivamente el panel de bienvenida y salud (`/var/www/_dashboard`), aislando la produccion (`prod.empresa.local`).
+3. **Dominio Base Desacoplado y Panel de Control:** El dominio base (`https://empresa.local`) sirve exclusivamente el centro de administración y salud (`/var/www/_dashboard`), permitiendo gestionar proyectos, bases de datos y diagnósticos de forma segura y aislando la producción (`prod.empresa.local`).
 4. **phpMyAdmin / almacenamiento:** `dbconfig-install false` seguido de configuracion determinista de `pmadb`: importa `/usr/share/phpmyadmin/sql/create_tables.sql` (19 tablas `pma__*`), crea usuario `pma@localhost` y genera `/etc/phpmyadmin/config-db.php`.
 5. **Twig ≥ 3.21:** Parche idempotente en `/usr/share/php/PhpMyAdmin/Twig/Extensions/TokenParser/TransTokenParser.php` (`getExpressionParser()->parseExpression()` -> `parseExpression()`) y limpieza de cache Twig.
 6. **Paridad Hostinger:** Inclusion de Redis Server (`redis-server`), extension `php-redis` y binario global de Composer 2.x en `/usr/local/bin/composer`.
