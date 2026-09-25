@@ -21,11 +21,9 @@
             </span>
         </div>
 
-        <?php foreach ($flashes as $flash): ?>
-            <div class="alert alert-<?= e($flash['type']) ?>"><?= nl2br(e($flash['message'])) ?></div>
-        <?php endforeach; ?>
+        <?php require $PANEL_ROOT . '/partials/flash.php'; ?>
 
-        <form method="POST" action="?page=login" class="login-form">
+        <form method="POST" action="/" class="login-form">
             <input type="hidden" name="action" value="login">
             <?= panel_csrf_field() ?>
             <label>
