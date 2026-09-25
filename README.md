@@ -47,7 +47,7 @@
 | **Base de Datos** | MariaDB 11.8 con acceso administrativo dual (`localhost` y `127.0.0.1`) |
 | **Panel de BD** | phpMyAdmin 5.x sobre subdominio dedicado, sin advertencias de almacenamiento |
 | **Panel y Control Web** | Panel de Control minimalista en el dominio base (`https://empresa.local`) con login, resumen de salud, gestion de proyectos y bases de datos, seguridad, certificados, respaldos, diagnostico y descargas |
-| **Subdominios Dinamicos** | Creacion instantanea de proyectos en `/var/www/<proyecto>/public_html` |
+| **Acceso Web Dual** | Subdominios dinámicos (`https://<proyecto>.empresa.local`) o rutas directas (`https://empresa.local/<proyecto>/` y `https://<IP>/<proyecto>/`) |
 | **Comparticion de Archivos**| Recurso unico Samba SMBv3 `[proyectos]` con mapeo resiliente (`Z:\` a `T:\`) |
 | **Seguridad de Red** | UFW (puertos 22, 80, 443, 445, 3389) + Fail2ban |
 | **Certificados TLS** | CA raiz interna + certificado comodin SAN (`*.empresa.local` + base + IP) |
@@ -122,6 +122,7 @@ Si cuentas con Pi-hole en tu red local, es la solucion mas comoda y transparente
 - **Router / Servidor DNS local (dnsmasq, MikroTik, pfSense, Windows Server):** Puede configurar la regla comodin directamente en su router o servidor DNS central.
 - **Dominio publico con comodin DNS:** Si dispone de un dominio publico (ej. Cloudflare o DuckDNS), puede crear un registro comodin `*` apuntando a la IP local de su servidor.
 - **Archivo hosts tradicional:** Si no tiene acceso al router ni servidor DNS, puede agregar los proyectos puntuales en `C:\Windows\System32\drivers\etc\hosts`.
+- **Acceso directo por ruta (Sin DNS adicional):** Si solo tiene configurado el dominio base en su archivo `hosts` o accede directamente por la direccion IP del servidor (`https://10.1.0.4/`), los proyectos se abren en `https://empresa.local/<proyecto>/` (o `https://10.1.0.4/<proyecto>/`) y phpMyAdmin en `https://empresa.local/phpmyadmin/`.
 
 Consulte la guia detallada con ejemplos en [`Manual.md`](Manual.md).
 
