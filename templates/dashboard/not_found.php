@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 http_response_code(404);
 
-$subdomain = $_SERVER['HTTP_HOST'] ?? 'subdominio';
+$host = $_SERVER['HTTP_HOST'] ?? 'subdominio';
+$uri = trim($_SERVER['REQUEST_URI'] ?? '', '/');
+$subdomain = ($uri !== '' && !str_contains($uri, '.php')) ? $uri : $host;
 $baseDomain = 'empresa.local';
 foreach (['/etc/srvctl-panel.conf', '/etc/srvctl.conf', '/etc/asistente_servidor.conf'] as $file) {
     if (is_file($file) && is_readable($file)) {
@@ -34,7 +36,7 @@ foreach (['/etc/srvctl-panel.conf', '/etc/srvctl.conf', '/etc/asistente_servidor
 <body>
 <div class="box">
     <h1>Proyecto no encontrado</h1>
-    <p>El subdominio <code><?= htmlspecialchars($subdomain, ENT_QUOTES, 'UTF-8') ?></code> no tiene una carpeta asociada en <code>/var/www</code>.</p>
+    <p>El subdominio o proyecto <code><?= htmlspecialchars($subdomain, ENT_QUOTES, 'UTF-8') ?></code> no tiene una carpeta asociada en <code>/var/www</code>.</p>
     <p>Crea la carpeta con su subdirectorio <code>public_html</code> para activarlo.</p>
     <a class="btn" href="https://<?= htmlspecialchars($baseDomain, ENT_QUOTES, 'UTF-8') ?>">Volver al panel</a>
 </div>
