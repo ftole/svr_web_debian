@@ -1,5 +1,7 @@
 # Credenciales locales de pruebas: NUNCA subir al repositorio
 debian_pruebas.txt
+*pruebas*.txt
+Servidor de pruebas.txt
 
 # Logs y archivos temporales
 *.log
