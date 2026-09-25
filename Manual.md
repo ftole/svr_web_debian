@@ -110,11 +110,11 @@ sudo srvctl project create tienda
 ```
 Esto crea la carpeta, genera un archivo `index.php` de bienvenida con diseño moderno, configura los permisos correctos e inicializa un repositorio Git local.
 
-### Opción C (Desde el Panel Web de Control):
+### Opción C (Desde el Panel de Control web):
 1. Ingresa a `https://empresa.local` desde tu navegador.
-2. Haz clic en **Iniciar Sesión Administrativa** e ingresa tus credenciales.
-3. En la sección **Crear Nuevo Proyecto**, escribe el nombre y haz clic en **Crear Proyecto**.
-4. ¡Listo! El proyecto queda publicado inmediatamente con su URL `https://nombre.empresa.local`.
+2. Verás una pantalla de acceso con la marca del panel y el estado breve de los servicios. Inicia sesión con tus credenciales administrativas.
+3. Ya dentro, el panel ofrece las secciones **Resumen**, **Proyectos**, **Bases de datos**, **Servicios**, **Seguridad**, **Certificados**, **Respaldos**, **Diagnóstico**, **Descargas** y **Configuración**.
+4. En **Proyectos**, escribe el nombre y pulsa **Crear proyecto**. El sitio queda publicado al instante en `https://nombre.empresa.local`.
 
 ### ¿Cómo crear una Base de Datos para tu proyecto?
 Casi todo sitio web requiere base de datos. Para no perder tiempo creando tablas y usuarios a mano, ejecuta:
