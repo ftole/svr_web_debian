@@ -102,7 +102,7 @@
                     }
 
                     var formData = new FormData(form);
-                    fetch(form.action || window.location.href, {
+                    fetch(form.getAttribute('action') || window.location.href, {
                         method: form.method || 'POST',
                         body: formData,
                         headers: { 'Accept': 'application/json' }

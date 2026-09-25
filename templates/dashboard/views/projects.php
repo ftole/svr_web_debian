@@ -103,7 +103,7 @@ unset($_SESSION['db_result']);
             <?= panel_csrf_field() ?>
             <div class="field">
                 <span>Nombre del proyecto (subdominio)</span>
-                <input type="text" name="project_name" class="input" pattern="^[a-z0-9]([a-z0-9-]*[a-z0-9])?$" required placeholder="ej. tienda, api-rest">
+                <input type="text" name="project_name" class="input" pattern="^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$" required placeholder="ej. tienda, api-rest">
             </div>
 
             <div class="switch">
