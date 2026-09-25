@@ -4,7 +4,7 @@ $backups = panel_backups();
 <section class="card">
     <div class="card-head">
         <h2>Respaldos del sistema</h2>
-        <form method="POST" action="?page=backups">
+        <form method="POST" action="/" data-loading="Generando respaldo…">
             <input type="hidden" name="action" value="backup_run">
             <input type="hidden" name="_page" value="backups">
             <?= panel_csrf_field() ?>
@@ -31,7 +31,7 @@ $backups = panel_backups();
                             <?php if ($snapshot['today']): ?>
                                 <span class="tag tag-ok">Más reciente</span>
                             <?php else: ?>
-                                <form method="POST" action="?page=backups" data-confirm="¿Restaurar /var/www desde <?= e($snapshot['name']) ?>? Se sobrescribirán los archivos actuales.">
+                                <form method="POST" action="/" data-confirm="¿Restaurar /var/www desde <?= e($snapshot['name']) ?>? Se sobrescribirán los archivos actuales." data-loading="Restaurando snapshot…">
                                     <input type="hidden" name="action" value="backup_rollback">
                                     <input type="hidden" name="_page" value="backups">
                                     <input type="hidden" name="snapshot" value="<?= e($snapshot['name']) ?>">
