@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+http_response_code(404);
+
 $subdomain = $_SERVER['HTTP_HOST'] ?? 'subdominio';
 $baseDomain = 'empresa.local';
 $confFiles = ['/etc/srvctl.conf', '/etc/asistente_servidor.conf'];
