@@ -1,21 +1,10 @@
 <?php
-$titles = [
-    'overview'    => 'Resumen',
-    'projects'    => 'Proyectos',
-    'database'    => 'Bases de datos',
-    'services'    => 'Servicios',
-    'security'    => 'Seguridad',
-    'ssl'         => 'Certificados',
-    'backups'     => 'Respaldos',
-    'diagnostics' => 'Diagnóstico',
-    'downloads'   => 'Descargas',
-    'settings'    => 'Configuración',
-];
+$titles = panel_page_titles();
 $title = $titles[$page] ?? 'Resumen';
 ?>
 <header class="topbar">
     <div class="topbar-left">
-        <h1><?= e($title) ?></h1>
+        <h1 id="page-title"><?= e($title) ?></h1>
         <span class="muted"><?= e($CONFIG['SERVER_IP']) ?> · <?= e($CONFIG['BASE_DOMAIN']) ?></span>
     </div>
     <div class="topbar-right">
