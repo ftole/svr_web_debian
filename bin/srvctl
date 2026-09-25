@@ -334,13 +334,22 @@ cmd_project_db() {
     validate_root
     load_config
     local name="$1"
+    local db_name_arg="${2:-}"
     [ -n "$name" ] || die "Debes especificar el nombre del proyecto. Ej: srvctl project db tienda"
 
     if ! validate_subdomain "$name"; then
         die "Nombre de proyecto invalido. Usa solo letras minusculas, numeros y guiones."
     fi
 
-    local db_name="${name//-/_}_db"
+    local db_name
+    if [ -n "$db_name_arg" ]; then
+        if [[ ! "$db_name_arg" =~ ^[a-z0-9_]{1,64}$ ]]; then
+            die "Nombre de base de datos invalido. Usa solo minusculas, numeros y guion bajo (max 64)."
+        fi
+        db_name="$db_name_arg"
+    else
+        db_name="${name//-/_}_db"
+    fi
     local db_user="${name//-/_}_usr"
     db_user="${db_user:0:32}"
     local db_pass
@@ -396,17 +405,24 @@ cmd_project_delete() {
     validate_root
     load_config
     local name="$1"
+    local force="${2:-}"
     [ -n "$name" ] || die "Debes especificar el nombre del proyecto. Ej: srvctl project delete tienda"
 
     if ! validate_subdomain "$name"; then
         die "Nombre de proyecto invalido. Usa solo letras minusculas, numeros y guiones."
     fi
 
-    if [ "$name" = "prod" ] || [ "$name" = "stg" ] || [ "$name" = "html" ] || [[ "$name" =~ ^_ ]]; then
-        die "No se permite eliminar proyectos base del sistema (${name})."
+    if { [ "$name" = "prod" ] || [ "$name" = "stg" ] || [ "$name" = "html" ] || [[ "$name" =~ ^_ ]]; } && [ "$force" != "--force" ]; then
+        die "No se permite eliminar proyectos base del sistema (${name}) sin --force."
     fi
 
     local pdir="/var/www/${name}"
+    local env_file="${pdir}/public_html/.env"
+    local env_db=""
+    if [ -f "${env_file}" ]; then
+        env_db="$(awk -F= '/^DB_DATABASE=/{print $2; exit}' "${env_file}" 2>/dev/null || true)"
+    fi
+
     if [ -d "${pdir}" ]; then
         rm -rf "${pdir}"
         log "[Proyecto] Directorio web eliminado: ${pdir}"
@@ -415,6 +431,9 @@ cmd_project_delete() {
     local db_name="${name//-/_}_db"
     local db_user="${name//-/_}_usr"
     mariadb -e "DROP DATABASE IF EXISTS \`${db_name}\`;" 2>/dev/null || true
+    if [ -n "${env_db}" ] && [ "${env_db}" != "${db_name}" ]; then
+        mariadb -e "DROP DATABASE IF EXISTS \`${env_db}\`;" 2>/dev/null || true
+    fi
     mariadb -e "DROP USER IF EXISTS '${db_user}'@'localhost', '${db_user}'@'127.0.0.1';" 2>/dev/null || true
 
     log "[Proyecto] Proyecto '${name}' y base de datos eliminados correctamente."
@@ -557,11 +576,39 @@ api_samba() {
     printf ']}\n'
 }
 
+api_database() {
+    validate_root
+    local first=1 name size tables is_sys
+    printf '{"databases":['
+    while IFS=$'\t' read -r name size tables; do
+        [ -z "$name" ] && continue
+        [ "$first" -eq 1 ] || printf ','
+        first=0
+        case "$name" in
+            information_schema|performance_schema|mysql|sys) is_sys="true" ;;
+            *) is_sys="false" ;;
+        esac
+        printf '{"name":"%s","size_mb":%s,"tables_count":%s,"is_system":%s}' \
+            "$(json_escape "$name")" "${size:-0}" "${tables:-0}" "$is_sys"
+    done < <(mariadb -N -e "SELECT s.SCHEMA_NAME, ROUND(COALESCE(SUM(t.data_length + t.index_length), 0) / 1024 / 1024, 2), COUNT(t.table_name) FROM information_schema.SCHEMATA s LEFT JOIN information_schema.TABLES t ON t.table_schema = s.SCHEMA_NAME GROUP BY s.SCHEMA_NAME ORDER BY s.SCHEMA_NAME;" 2>/dev/null || true)
+    printf '],"users":['
+    first=1
+    local user host
+    while IFS=$'\t' read -r user host; do
+        [ -z "$user" ] && continue
+        [ "$first" -eq 1 ] || printf ','
+        first=0
+        printf '{"user":"%s","host":"%s"}' "$(json_escape "$user")" "$(json_escape "$host")"
+    done < <(mariadb -N -e "SELECT User, Host FROM mysql.user WHERE User NOT IN ('', 'root', 'pma') ORDER BY User, Host;" 2>/dev/null || true)
+    printf ']}\n'
+}
+
 cmd_api() {
     case "${1:-}" in
         security) api_security ;;
         samba)    api_samba ;;
-        *)        die "Uso: srvctl api [security|samba]" ;;
+        database) api_database ;;
+        *)        die "Uso: srvctl api [security|samba|database]" ;;
     esac
 }
 
@@ -627,8 +674,8 @@ case "$subcmd" in
     project)
         case "${2:-}" in
             create) cmd_project_create "${3:-}" ;;
-            db)     cmd_project_db "${3:-}" ;;
-            delete) cmd_project_delete "${3:-}" ;;
+            db)     cmd_project_db "${3:-}" "${4:-}" ;;
+            delete) cmd_project_delete "${3:-}" "${4:-}" ;;
             list)   cmd_project_list ;;
             *) die "Uso: srvctl project [create <nombre>|db <nombre>|delete <nombre>|list]" ;;
         esac
