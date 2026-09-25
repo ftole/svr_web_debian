@@ -942,7 +942,6 @@ if ($backupDir) {
                     <a href="/downloads/rootCA.crt" download class="btn btn-outline btn-sm">Certificado SSL</a>
                     <a href="/downloads/configurar-cliente.bat" download class="btn btn-outline btn-sm">Cliente (.bat)</a>
                     <a href="/downloads/configurar-desarrollador.bat" download class="btn btn-outline btn-sm">Dev (.bat)</a>
-                    <a href="/downloads/configurar-desarrollador.ps1" download class="btn btn-outline btn-sm">Dev (.ps1)</a>
                 </div>
             </div>
         </div>
