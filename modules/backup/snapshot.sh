@@ -84,7 +84,6 @@ rollback_web() {
     fi
     log "[Rollback] Restaurando /var/www/ desde ${snap_path}..."
     rsync -a --delete "${snap_path}/" /var/www/
-    chown -R www-data:www-data /var/www
     log "           Archivos web restaurados con exito desde ${snap}."
 }
 
