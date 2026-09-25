@@ -385,6 +385,34 @@ EOF
     echo "======================================================================"
 }
 
+cmd_project_delete() {
+    validate_root
+    load_config
+    local name="$1"
+    [ -n "$name" ] || die "Debes especificar el nombre del proyecto. Ej: srvctl project delete tienda"
+
+    if ! validate_subdomain "$name"; then
+        die "Nombre de proyecto invalido. Usa solo letras minusculas, numeros y guiones."
+    fi
+
+    if [ "$name" = "prod" ] || [ "$name" = "stg" ] || [ "$name" = "html" ] || [[ "$name" =~ ^_ ]]; then
+        die "No se permite eliminar proyectos base del sistema (${name})."
+    fi
+
+    local pdir="/var/www/${name}"
+    if [ -d "${pdir}" ]; then
+        rm -rf "${pdir}"
+        log "[Proyecto] Directorio web eliminado: ${pdir}"
+    fi
+
+    local db_name="${name//-/_}_db"
+    local db_user="${name//-/_}_usr"
+    mariadb -e "DROP DATABASE IF EXISTS \`${db_name}\`;" 2>/dev/null || true
+    mariadb -e "DROP USER IF EXISTS '${db_user}'@'localhost', '${db_user}'@'127.0.0.1';" 2>/dev/null || true
+
+    log "[Proyecto] Proyecto '${name}' y base de datos eliminados correctamente."
+}
+
 cmd_reset() {
     validate_root
     log "[Reset] Restaurando servidor al estado base limpio..."
@@ -401,7 +429,7 @@ cmd_reset() {
 
     rm -rf /var/www/prod /var/www/stg /var/www/_dashboard
     rm -rf /etc/apache2 /etc/php /etc/mysql /etc/samba /var/lib/mysql /etc/phpmyadmin /etc/ssl/localcerts /backup /var/backups/srvctl /opt/scripts
-    rm -f /var/log/backup-daily.log /var/log/sudo.log /etc/cron.d/web-daily-backup /etc/srvctl.conf /etc/asistente_servidor.conf
+    rm -f /var/log/backup-daily.log /var/log/sudo.log /etc/cron.d/web-daily-backup /etc/srvctl.conf /etc/asistente_servidor.conf /etc/sudoers.d/srvctl-web
 
     mkdir -p /var/www/html
     chown -R root:root /var/www
@@ -476,8 +504,9 @@ case "$subcmd" in
         case "${2:-}" in
             create) cmd_project_create "${3:-}" ;;
             db)     cmd_project_db "${3:-}" ;;
+            delete) cmd_project_delete "${3:-}" ;;
             list)   cmd_project_list ;;
-            *) die "Uso: srvctl project [create <nombre>|db <nombre>|list]" ;;
+            *) die "Uso: srvctl project [create <nombre>|db <nombre>|delete <nombre>|list]" ;;
         esac
         ;;
     backup)
