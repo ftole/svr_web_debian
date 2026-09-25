@@ -42,7 +42,10 @@ load_config() {
     ADMIN_PASS="${ADMIN_PASS:-Temp123#}"
 
     PHP_VER="$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null || true)"
-    [ -z "$PHP_VER" ] && PHP_VER="8.4"
+    if [ -z "$PHP_VER" ]; then
+        PHP_VER="8.4"
+    fi
+    return 0
 }
 
 save_config() {
@@ -65,4 +68,5 @@ ADMIN_PASS='${ADMIN_PASS}'
 PHP_VER='${PHP_VER}'
 EOF
     )
+    return 0
 }
