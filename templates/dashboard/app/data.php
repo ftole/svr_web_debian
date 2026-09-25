@@ -164,39 +164,13 @@ function panel_projects(array $conf): array
 function panel_databases(array $conf): array
 {
     $result = ['ok' => false, 'error' => '', 'databases' => [], 'users' => []];
-    if (!class_exists('mysqli')) {
-        $result['error'] = 'Extensión mysqli no disponible.';
+    $data = panel_srvctl_api('database');
+    if (!is_array($data)) {
+        $result['error'] = 'No se pudo obtener la información de bases de datos (srvctl api database).';
         return $result;
     }
-    $mysqli = @new mysqli('127.0.0.1', (string)$conf['ADMIN_USER'], (string)$conf['ADMIN_PASS'], '', 3306);
-    if ($mysqli->connect_errno) {
-        $result['error'] = 'No se pudo conectar a MariaDB: ' . $mysqli->connect_error;
-        return $result;
-    }
-    $mysqli->set_charset('utf8mb4');
-    $system = ['information_schema', 'performance_schema', 'mysql', 'sys'];
-    $query = 'SELECT table_schema AS name, '
-        . 'ROUND(SUM(data_length + index_length) / 1024 / 1024, 2) AS size_mb, '
-        . 'COUNT(*) AS tables_count '
-        . 'FROM information_schema.tables GROUP BY table_schema ORDER BY table_schema';
-    if ($res = $mysqli->query($query)) {
-        while ($row = $res->fetch_assoc()) {
-            $result['databases'][] = [
-                'name'         => (string)$row['name'],
-                'size_mb'      => (float)($row['size_mb'] ?? 0),
-                'tables_count' => (int)($row['tables_count'] ?? 0),
-                'is_system'    => in_array($row['name'], $system, true),
-            ];
-        }
-        $res->free();
-    }
-    if ($res = $mysqli->query("SELECT User, Host FROM mysql.user WHERE User NOT IN ('', 'root', 'pma') ORDER BY User, Host")) {
-        while ($row = $res->fetch_assoc()) {
-            $result['users'][] = ['user' => (string)$row['User'], 'host' => (string)$row['Host']];
-        }
-        $res->free();
-    }
-    $mysqli->close();
+    $result['databases'] = is_array($data['databases'] ?? null) ? $data['databases'] : [];
+    $result['users'] = is_array($data['users'] ?? null) ? $data['users'] : [];
     $result['ok'] = true;
     return $result;
 }
