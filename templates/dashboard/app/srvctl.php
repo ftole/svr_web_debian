@@ -7,10 +7,10 @@ if (!defined('PANEL')) {
 
 function panel_srvctl(array $args, int $timeout = 0): array
 {
-    $command = 'sudo /usr/local/bin/srvctl';
-    foreach ($args as $arg) {
-        $command .= ' ' . escapeshellarg((string)$arg);
-    }
+    // Unir argumentos con espacio (el wrapper hace read -r ACTION TARGET EXTRA)
+    $cmd_str = implode(' ', $args);
+    // Ejecutar pasando la variable por entorno al wrapper (usando env)
+    $command = 'env SRVCTL_CMD=' . escapeshellarg($cmd_str) . ' sudo /usr/local/bin/srvctl-web-wrapper';
     return panel_run($command, $timeout);
 }
 
