@@ -29,7 +29,7 @@ Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.
 | `modules/web/` | Autoridad CA raiz y SSL comodin SAN, VirtualHosts de Apache (`mod_vhost_alias`) y Dashboard de salud. |
 | `modules/share/` | Servidor Samba SMBv3 con recurso unificado `[proyectos]` sobre `/var/www`. |
 | `modules/backup/` | Sistema de respaldos diarios por snapshots rotativos de 7 dias y volcados SQL. |
-| `templates/dashboard/` | Codigo fuente del centro de administracion web, control y salud (`index.php`, `not_found.php`). |
+| `templates/dashboard/` | Codigo fuente del Panel de Control multiarchivo (`index.php`, `app/`, `views/`, `partials/`, `assets/`, `not_found.php`). |
 | `templates/windows/` | Scripts de aprovisionamiento en 1 clic para clientes (`configurar-cliente.bat`, `configurar-desarrollador.bat`) con inyeccion de resolucion en el archivo `hosts`. |
 | `tests/test_validator.sh` | Suite de pruebas unitarias automatizadas y chaos testing de validacion de entradas. |
 | `install.sh` | Bootstrap de instalacion via `curl`: descarga a `/opt/srvctl` y enlaza el CLI global. |
