@@ -24,6 +24,9 @@ Para que tu computadora sepa que `tienda.empresa.local`, `blog.empresa.local` o 
 > [!NOTE]
 > El archivo `hosts` tradicional de Windows **no admite comodines** (`*.empresa.local`). Por ello, existen varias alternativas para resolver los dominios de forma cómoda:
 
+> [!TIP]
+> Si tu red no cuenta con un servidor DNS, los scripts `.bat` de aprovisionamiento (Sección 3) inyectan automáticamente los dominios estándar y los proyectos existentes en el archivo `hosts` de Windows. Basta con ejecutar el `.bat` como administrador.
+
 ### Opción 1 (Recomendada): Servidor DNS Pi-hole
 Si cuentas con un servidor Pi-hole en tu red local, es la opción más sencilla ya que resuelve automáticamente cualquier subdominio actual y futuro para todos los dispositivos de la red.
 - En la consola de Pi-hole, crea un archivo `/etc/dnsmasq.d/02-wildcard.conf`:
@@ -79,9 +82,10 @@ Aplica tu método preferido de la Sección 2 (por ejemplo, la regla comodín en 
 ### Paso 3: Conectar tu computadora Windows
 1. En tu computadora Windows, abre el navegador y entra a: `https://<IP_DEL_SERVIDOR>` (o a `https://empresa.local`).
 2. En la sección de recursos del panel de bienvenida, descarga el archivo:
-   - `configurar-desarrollador.bat` (o `configurar-desarrollador.ps1` si usas PowerShell).
+   - `configurar-desarrollador.bat`.
 3. Haz clic derecho sobre el archivo descargado y selecciona **Ejecutar como administrador**.
 4. ¡Listo! El script:
+   - Inyectará la resolución de los subdominios en el archivo `hosts` de Windows (entornos sin DNS comodín).
    - Instalará el certificado de seguridad para que ningún navegador muestre advertencias rojas.
    - Montará automáticamente la unidad de red **`Z:\`** conectada a la carpeta de proyectos del servidor.
    - Configurará el acceso directo para terminal y Git mediante el comando `ssh web`.
