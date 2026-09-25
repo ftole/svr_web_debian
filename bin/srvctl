@@ -57,8 +57,8 @@ cmd_deploy() {
     bash "${SRVCTL_ROOT}/modules/system/power.sh" apply
     bash "${SRVCTL_ROOT}/modules/system/network.sh" disable-ipv6
     bash "${SRVCTL_ROOT}/modules/security/ssh.sh" apply
-    bash "${SRVCTL_ROOT}/modules/security/firewall.sh" apply
     bash "${SRVCTL_ROOT}/modules/stack/base.sh"
+    bash "${SRVCTL_ROOT}/modules/security/firewall.sh" apply
     bash "${SRVCTL_ROOT}/modules/stack/php.sh"
     bash "${SRVCTL_ROOT}/modules/stack/redis.sh"
     bash "${SRVCTL_ROOT}/modules/stack/mariadb.sh"
