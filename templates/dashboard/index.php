@@ -58,153 +58,195 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $back = 'overview';
     }
 
+    $isAjax = (strpos(strtolower($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json') !== false || (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest'));
+
+    $respond = function(bool $success, string $message, string $redirect) use ($isAjax) {
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => $success, 'message' => $message]);
+            exit;
+        } else {
+            panel_flash($success ? 'success' : 'error', $message);
+            panel_redirect($redirect);
+        }
+    };
+
     if ($action === 'logout') {
         panel_logout();
+        if ($isAjax) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => true, 'message' => 'Sesión cerrada.']);
+            exit;
+        }
         panel_redirect('login');
     }
 
     if ($action === 'login') {
         $ip = panel_client_ip();
         if (!panel_csrf_valid()) {
-            panel_flash('error', 'Token de seguridad inválido. Recarga la página e inténtalo de nuevo.');
-            panel_redirect('login');
+            $respond(false, 'Token de seguridad inválido. Recarga la página e inténtalo de nuevo.', 'login');
         }
         if (panel_login_blocked($ip)) {
-            panel_flash('error', 'Demasiados intentos fallidos. Espera unos minutos antes de reintentar.');
-            panel_redirect('login');
+            $respond(false, 'Demasiados intentos fallidos. Espera unos minutos antes de reintentar.', 'login');
         }
         $user = trim((string)($_POST['username'] ?? ''));
         $pass = (string)($_POST['password'] ?? '');
         if (panel_login($user, $pass, $CONFIG)) {
             panel_login_clear($ip);
-            panel_flash('success', 'Sesión iniciada correctamente.');
-            panel_redirect('overview');
+            $respond(true, 'Sesión iniciada correctamente.', 'overview');
         }
         panel_login_record_fail($ip);
         usleep(300000);
-        panel_flash('error', 'Credenciales administrativas inválidas.');
-        panel_redirect('login');
+        $respond(false, 'Credenciales administrativas inválidas.', 'login');
     }
 
     if (!panel_is_admin()) {
-        panel_flash('error', 'Debes iniciar sesión como administrador.');
-        panel_redirect('login');
+        $respond(false, 'Debes iniciar sesión como administrador.', 'login');
     }
-    panel_csrf_check();
+    
+    $sent = (string)($_POST['csrf_token'] ?? '');
+    if (!hash_equals(panel_csrf_token(), $sent)) {
+        $respond(false, 'Token de seguridad inválido o expirado. Operación cancelada.', $back);
+    }
+    
     panel_touch();
 
-    if ($action === 'clear_verify') {
-        unset($_SESSION['verify_result']);
-        panel_redirect('diagnostics');
-    }
+    switch ($action) {
+        case 'clear_verify':
+            unset($_SESSION['verify_result']);
+            if ($isAjax) {
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(['success' => true, 'message' => 'Resultados limpiados']);
+                exit;
+            }
+            panel_redirect('diagnostics');
+            break;
 
-    if ($action === 'project_create') {
-        $name = strtolower(trim((string)($_POST['project_name'] ?? '')));
-        $createDb = (($_POST['create_db'] ?? '0') === '1');
-        $customDb = (($_POST['custom_db'] ?? '0') === '1');
-        $dbName = strtolower(trim((string)($_POST['db_name'] ?? '')));
-        if (!preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', $name)) {
-            panel_flash('error', 'Nombre de proyecto inválido. Usa solo minúsculas, números y guiones.');
-        } elseif (is_dir('/var/www/' . $name)) {
-            panel_flash('error', "El proyecto '{$name}' ya existe.");
-        } else {
-            [$code, $output] = panel_srvctl(['project', 'create', $name], 30);
-            if ($code !== 0) {
-                panel_flash('error', 'Error al crear el proyecto: ' . $output);
+        case 'project_create':
+            $name = strtolower(trim((string)($_POST['project_name'] ?? '')));
+            $createDb = (($_POST['create_db'] ?? '0') === '1');
+            $customDb = (($_POST['custom_db'] ?? '0') === '1');
+            $dbName = strtolower(trim((string)($_POST['db_name'] ?? '')));
+            if (!preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', $name)) {
+                $respond(false, 'Nombre de proyecto inválido. Usa solo minúsculas, números y guiones.', 'projects');
+            } elseif (is_dir('/var/www/' . $name)) {
+                $respond(false, "El proyecto '{$name}' ya existe.", 'projects');
             } else {
-                panel_flash('success', "Proyecto '{$name}' creado. Disponible en https://{$name}.{$CONFIG['BASE_DOMAIN']}");
-                if ($createDb) {
-                    $args = ['project', 'db', $name];
-                    if ($customDb && preg_match('/^[a-z0-9_]{1,64}$/', $dbName)) {
-                        $args[] = $dbName;
+                [$code, $output] = panel_srvctl(['project', 'create', $name], 30);
+                if ($code !== 0) {
+                    $respond(false, 'Error al crear el proyecto: ' . $output, 'projects');
+                } else {
+                    $msg = "Proyecto '{$name}' creado. Disponible en https://{$name}.{$CONFIG['BASE_DOMAIN']}";
+                    if ($createDb) {
+                        $args = ['project', 'db', $name];
+                        if ($customDb && preg_match('/^[a-z0-9_]{1,64}$/', $dbName)) {
+                            $args[] = $dbName;
+                        }
+                        [$dbCode, $dbOut] = panel_srvctl($args, 30);
+                        if ($dbCode === 0) {
+                            $_SESSION['db_result'] = panel_read_env_db($name);
+                            $msg .= " Base de datos aprovisionada para '{$name}'.";
+                        } else {
+                            $msg .= " (Falló aprovisionamiento DB: {$dbOut})";
+                        }
                     }
-                    [$dbCode, $dbOut] = panel_srvctl($args, 30);
-                    if ($dbCode === 0) {
-                        $_SESSION['db_result'] = panel_read_env_db($name);
-                        panel_flash('success', "Base de datos aprovisionada para '{$name}'.");
-                    } else {
-                        panel_flash('warning', 'Proyecto creado, pero falló el aprovisionamiento de la base de datos: ' . $dbOut);
-                    }
+                    $respond(true, $msg, 'projects');
                 }
             }
-        }
-        panel_redirect('projects');
-    }
+            break;
 
-    if ($action === 'project_db') {
-        $name = strtolower(trim((string)($_POST['project_name'] ?? '')));
-        if (!preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', $name)) {
-            panel_flash('error', 'Nombre de proyecto inválido para base de datos.');
-        } else {
-            [$code, $output] = panel_srvctl(['project', 'db', $name], 30);
-            if ($code === 0) {
-                $_SESSION['db_result'] = panel_read_env_db($name);
-                panel_flash('success', "Base de datos aprovisionada para '{$name}'.");
+        case 'project_db':
+            $name = strtolower(trim((string)($_POST['project_name'] ?? '')));
+            if (!preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', $name)) {
+                $respond(false, 'Nombre de proyecto inválido para base de datos.', 'projects');
             } else {
-                panel_flash('error', 'Error al aprovisionar la base de datos: ' . $output);
+                [$code, $output] = panel_srvctl(['project', 'db', $name], 30);
+                if ($code === 0) {
+                    $_SESSION['db_result'] = panel_read_env_db($name);
+                    $respond(true, "Base de datos aprovisionada para '{$name}'.", 'projects');
+                } else {
+                    $respond(false, 'Error al aprovisionar la base de datos: ' . $output, 'projects');
+                }
             }
-        }
-        panel_redirect('projects');
-    }
+            break;
 
-    if ($action === 'project_delete') {
-        $name = strtolower(trim((string)($_POST['project_name'] ?? '')));
-        $force = (($_POST['force'] ?? '0') === '1');
-        if (!preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', $name)) {
-            panel_flash('error', 'Nombre de proyecto inválido.');
-        } elseif (!is_dir('/var/www/' . $name)) {
-            panel_flash('error', "El proyecto '{$name}' no existe.");
-        } else {
-            $args = ['project', 'delete', $name];
-            if ($force) {
-                $args[] = '--force';
+        case 'project_delete':
+            $name = strtolower(trim((string)($_POST['project_name'] ?? '')));
+            $force = (($_POST['force'] ?? '0') === '1');
+            if (!preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', $name)) {
+                $respond(false, 'Nombre de proyecto inválido.', 'projects');
+            } elseif (!is_dir('/var/www/' . $name)) {
+                $respond(false, "El proyecto '{$name}' no existe.", 'projects');
+            } else {
+                $args = ['project', 'delete', $name];
+                if ($force) {
+                    $args[] = '--force';
+                }
+                [$code, $output] = panel_srvctl($args, 30);
+                if ($code === 0) {
+                    $respond(true, "Proyecto '{$name}' eliminado.", 'projects');
+                } else {
+                    $respond(false, 'Error al eliminar el proyecto: ' . $output, 'projects');
+                }
             }
-            [$code, $output] = panel_srvctl($args, 30);
-            $code === 0
-                ? panel_flash('success', "Proyecto '{$name}' eliminado.")
-                : panel_flash('error', 'Error al eliminar el proyecto: ' . $output);
-        }
-        panel_redirect('projects');
-    }
+            break;
 
-    if ($action === 'backup_run') {
-        [$code, $output] = panel_srvctl(['backup', 'run'], 120);
-        $code === 0
-            ? panel_flash('success', 'Respaldo completado correctamente.')
-            : panel_flash('error', 'Error al ejecutar el respaldo: ' . $output);
-        panel_redirect('backups');
-    }
+        case 'backup_run':
+            [$code, $output] = panel_srvctl(['backup', 'run'], 120);
+            if ($code === 0) {
+                $respond(true, 'Respaldo completado correctamente.', 'backups');
+            } else {
+                $respond(false, 'Error al ejecutar el respaldo: ' . $output, 'backups');
+            }
+            break;
 
-    if ($action === 'backup_rollback') {
-        $snap = (string)($_POST['snapshot'] ?? 'daily.0');
-        if (!preg_match('/^daily\.[0-6]$/', $snap)) {
-            panel_flash('error', 'Snapshot inválido.');
-        } else {
-            [$code, $output] = panel_srvctl(['backup', 'rollback', $snap], 120);
-            $code === 0
-                ? panel_flash('success', "Archivos restaurados desde {$snap}.")
-                : panel_flash('error', 'Error al restaurar: ' . $output);
-        }
-        panel_redirect('backups');
-    }
+        case 'backup_rollback':
+            $snap = (string)($_POST['snapshot'] ?? 'daily.0');
+            if (!preg_match('/^daily\.[0-6]$/', $snap)) {
+                $respond(false, 'Snapshot inválido.', 'backups');
+            } else {
+                [$code, $output] = panel_srvctl(['backup', 'rollback', $snap], 120);
+                if ($code === 0) {
+                    $respond(true, "Archivos restaurados desde {$snap}.", 'backups');
+                } else {
+                    $respond(false, 'Error al restaurar: ' . $output, 'backups');
+                }
+            }
+            break;
 
-    if ($action === 'verify') {
-        [$code, $output] = panel_srvctl(['verify'], 120);
-        $_SESSION['verify_result'] = [
-            'output'    => $output,
-            'code'      => $code,
-            'pass'      => substr_count($output, '[ OK ]'),
-            'fail'      => substr_count($output, '[FAIL]'),
-            'timestamp' => date('Y-m-d H:i:s'),
-        ];
-        $fail = (int)$_SESSION['verify_result']['fail'];
-        $fail === 0
-            ? panel_flash('success', 'Diagnóstico completado: todas las comprobaciones pasaron.')
-            : panel_flash('warning', "Diagnóstico finalizado con {$fail} fallo(s).");
-        panel_redirect('diagnostics');
-    }
+        case 'verify':
+            [$code, $output] = panel_srvctl(['verify'], 120);
+            $_SESSION['verify_result'] = [
+                'output'    => $output,
+                'code'      => $code,
+                'pass'      => substr_count($output, '[ OK ]'),
+                'fail'      => substr_count($output, '[FAIL]'),
+                'timestamp' => date('Y-m-d H:i:s'),
+            ];
+            $fail = (int)$_SESSION['verify_result']['fail'];
+            if ($fail === 0) {
+                $respond(true, 'Diagnóstico completado: todas las comprobaciones pasaron.', 'diagnostics');
+            } else {
+                if ($isAjax) {
+                    header('Content-Type: application/json; charset=utf-8');
+                    echo json_encode(['success' => true, 'message' => "Diagnóstico finalizado con {$fail} fallo(s)."]);
+                    exit;
+                } else {
+                    panel_flash('warning', "Diagnóstico finalizado con {$fail} fallo(s).");
+                    panel_redirect('diagnostics');
+                }
+            }
+            break;
 
-    panel_redirect($back);
+        default:
+            if ($isAjax) {
+                header('Content-Type: application/json; charset=utf-8');
+                echo json_encode(['success' => false, 'message' => 'Acción desconocida.']);
+                exit;
+            }
+            panel_redirect($back);
+            break;
+    }
 }
 
 $flashes = panel_take_flashes();
