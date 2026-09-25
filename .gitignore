@@ -9,3 +9,4 @@ Servidor de pruebas.txt
 *.bak
 *.orig
 .pma_cookies*
+bypass_deploy.sh
