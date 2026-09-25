@@ -33,7 +33,7 @@ if not defined ADMIN_PASS (
     exit /b 1
 )
 
-echo [1/5] Instalando Certificado SSL Raiz...
+echo [1/6] Instalando Certificado SSL Raiz...
 if exist "%CERT_TMP%" del "%CERT_TMP%" >nul 2>&1
 where curl.exe >nul 2>&1
 if %errorLevel% equ 0 (
@@ -52,7 +52,7 @@ if exist "%CERT_TMP%" (
 )
 
 echo [2/6] Inyectando resolucion de nombres en el archivo hosts...
-:: __HOSTS_CALLS__
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $h='%HOSTS%'; $ip='%SERVER_IP%'; $names=@(__HOSTS_NAMES__); $lines=@(Get-Content -LiteralPath $h); $out=@($lines | Where-Object { $p=($_ -replace '#.*$','').Trim() -split '\s+'; -not ($p.Count -ge 2 -and ($names -contains $p[1])) }); foreach($n in $names){ $out += ($ip + ' ' + $n) }; Set-Content -LiteralPath $h -Value $out -Encoding ASCII; Write-Host ('      [OK] hosts actualizado: ' + $names.Count + ' dominios hacia ' + $ip) } catch { Write-Host ('      [ERROR] No se pudo actualizar hosts: ' + $_.Exception.Message); Write-Host '      Un antivirus (Kaspersky/Defender) o Smart App Control puede bloquear la escritura.'; Write-Host ('      Agrega manualmente estas lineas en ' + $h + ':'); foreach($n in $names){ Write-Host ('        ' + $ip + ' ' + $n) } }"
 
 echo [3/6] Habilitando visibilidad de unidades mapeadas [EnableLinkedConnections]...
 reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v EnableLinkedConnections /t REG_DWORD /d 1 /f >nul
@@ -138,15 +138,4 @@ echo  - Certificado TLS: Confiable y validado
 echo ==============================================================================
 echo.
 pause
-exit /b
-
-:add_host
-attrib -r "%HOSTS%" >nul 2>&1
-findstr /i /c:"%SERVER_IP% %~1" "%HOSTS%" >nul 2>&1
-if errorlevel 1 (
-    >>"%HOSTS%" echo %SERVER_IP% %~1
-    echo       [OK] hosts: %~1 -^> %SERVER_IP%
-) else (
-    echo       [INFO] hosts ya contiene %~1
-)
 exit /b
