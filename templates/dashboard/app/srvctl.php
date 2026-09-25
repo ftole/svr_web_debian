@@ -23,3 +23,19 @@ function panel_srvctl_api(string $section): ?array
     $data = json_decode($output, true);
     return is_array($data) ? $data : null;
 }
+
+function panel_read_env_db(string $name): array
+{
+    $db = ['project' => $name, 'host' => '127.0.0.1', 'port' => '3306', 'database' => '', 'user' => '', 'pass' => ''];
+    $envFile = '/var/www/' . $name . '/public_html/.env';
+    if (is_readable($envFile)) {
+        $env = (string)@file_get_contents($envFile);
+        $map = ['DB_DATABASE' => 'database', 'DB_USERNAME' => 'user', 'DB_PASSWORD' => 'pass', 'DB_HOST' => 'host', 'DB_PORT' => 'port'];
+        foreach ($map as $key => $field) {
+            if (preg_match('/^' . $key . '=(.*)$/m', $env, $m)) {
+                $db[$field] = trim($m[1]);
+            }
+        }
+    }
+    return $db;
+}
