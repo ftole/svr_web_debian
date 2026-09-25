@@ -455,7 +455,7 @@ cmd_reset() {
 
     rm -rf /var/www/prod /var/www/stg /var/www/_dashboard
     rm -rf /etc/apache2 /etc/php /etc/mysql /etc/samba /var/lib/mysql /etc/phpmyadmin /etc/ssl/localcerts /backup /var/backups/srvctl /opt/scripts
-    rm -f /var/log/backup-daily.log /var/log/sudo.log /etc/cron.d/web-daily-backup /etc/srvctl.conf /etc/asistente_servidor.conf /etc/sudoers.d/srvctl-web
+    rm -f /var/log/backup-daily.log /var/log/sudo.log /etc/cron.d/web-daily-backup /etc/srvctl.conf /etc/srvctl-panel.conf /etc/asistente_servidor.conf /etc/sudoers.d/srvctl-web
 
     mkdir -p /var/www/html
     chown -R root:root /var/www
