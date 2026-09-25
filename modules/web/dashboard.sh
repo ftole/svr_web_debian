@@ -31,43 +31,39 @@ deploy_dashboard() {
     fi
 
     # Generar scripts para Windows en downloads con resolucion de hosts inyectada
-    local hosts_calls
-    hosts_calls="$(mktemp)"
-    {
-        echo "call :add_host ${BASE_DOMAIN}"
-        echo "call :add_host ${PROD_FQDN}"
-        echo "call :add_host ${STG_FQDN}"
-        echo "call :add_host ${DB_FQDN}"
-        for d in /var/www/*; do
-            [ -d "$d" ] || continue
-            local b
-            b="$(basename "$d")"
-            case "$b" in
-                html|_*) continue ;;
-            esac
-            echo "call :add_host ${b}.${BASE_DOMAIN}"
-        done
-    } > "${hosts_calls}"
+    local hosts_names="" n d b
+    local -A hosts_seen=()
+    local -a hosts_list=("${BASE_DOMAIN}" "${PROD_FQDN}" "${STG_FQDN}" "${DB_FQDN}")
+    for d in /var/www/*; do
+        [ -d "$d" ] || continue
+        b="$(basename "$d")"
+        case "$b" in
+            html|_*) continue ;;
+        esac
+        hosts_list+=("${b}.${BASE_DOMAIN}")
+    done
+    for n in "${hosts_list[@]}"; do
+        [ -n "${hosts_seen[$n]:-}" ] && continue
+        hosts_seen[$n]=1
+        hosts_names="${hosts_names:+${hosts_names},}'${n}'"
+    done
 
     if [ -f "${tpl_dir}/windows/configurar-cliente.bat" ]; then
-        sed "s/__SERVER_IP__/${SERVER_IP}/g" \
+        sed -e "s/__SERVER_IP__/${SERVER_IP}/g" \
+            -e "s/__HOSTS_NAMES__/${hosts_names}/g" \
             "${tpl_dir}/windows/configurar-cliente.bat" > "${dl_dir}/configurar-cliente.bat"
-        sed -i "/__HOSTS_CALLS__/r ${hosts_calls}" "${dl_dir}/configurar-cliente.bat"
-        sed -i "/__HOSTS_CALLS__/d" "${dl_dir}/configurar-cliente.bat"
     fi
 
     if [ -f "${tpl_dir}/windows/configurar-desarrollador.bat" ]; then
         sed -e "s/__SERVER_IP__/${SERVER_IP}/g" \
             -e "s/__ADMIN_USER__/${ADMIN_USER}/g" \
+            -e "s/__HOSTS_NAMES__/${hosts_names}/g" \
             "${tpl_dir}/windows/configurar-desarrollador.bat" > "${dl_dir}/configurar-desarrollador.bat"
-        sed -i "/__HOSTS_CALLS__/r ${hosts_calls}" "${dl_dir}/configurar-desarrollador.bat"
-        sed -i "/__HOSTS_CALLS__/d" "${dl_dir}/configurar-desarrollador.bat"
     fi
 
-    rm -f "${hosts_calls}"
     rm -f "${dl_dir}/configurar-desarrollador.ps1"
 
-    # Los .bat deben usar finales de linea CRLF para cmd.exe (labels y goto)
+    # Los .bat deben usar finales de linea CRLF para cmd.exe
     if [ -f "${dl_dir}/configurar-cliente.bat" ]; then
         sed -i 's/$/\r/' "${dl_dir}/configurar-cliente.bat"
     fi
