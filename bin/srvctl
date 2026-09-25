@@ -310,6 +310,8 @@ EOF
     )
 
     log "[Proyecto] Creado: ${name} -> https://${name}.${BASE_DOMAIN} (/var/www/${name})"
+
+    bash "${SRVCTL_ROOT}/modules/web/dashboard.sh" >/dev/null 2>&1 || true
 }
 
 cmd_project_list() {
