@@ -19,7 +19,10 @@ unset($_SESSION['db_result']);
                 <div class="project-top">
                     <div>
                         <h3><?= e($project['name']) ?></h3>
-                        <a class="link" href="https://<?= e($project['fqdn']) ?>" target="_blank" rel="noopener">https://<?= e($project['fqdn']) ?></a>
+                        <div><a class="link" href="https://<?= e($project['fqdn']) ?>" target="_blank" rel="noopener">https://<?= e($project['fqdn']) ?></a></div>
+                        <div class="muted" style="font-size: 0.8rem; margin-top: 2px;">
+                            Ruta: <a href="https://<?= e($CONFIG['BASE_DOMAIN']) ?>/<?= e($project['name']) ?>/" target="_blank" rel="noopener">/<?= e($project['name']) ?>/</a>
+                        </div>
                     </div>
                     <?php if ($project['has_db']): ?>
                         <span class="tag tag-ok" title="Base de datos">BD</span>
@@ -115,7 +118,7 @@ unset($_SESSION['db_result']);
             <dl class="kv kv-inline">
                 <div>
                     <dt>Proyecto</dt>
-                    <dd><a href="https://<?= e($dbResult['project'] . '.' . $CONFIG['BASE_DOMAIN']) ?>" target="_blank" rel="noopener">https://<?= e($dbResult['project'] . '.' . $CONFIG['BASE_DOMAIN']) ?></a></dd>
+                    <dd><a href="https://<?= e($dbResult['project'] . '.' . $CONFIG['BASE_DOMAIN']) ?>" target="_blank" rel="noopener">https://<?= e($dbResult['project'] . '.' . $CONFIG['BASE_DOMAIN']) ?></a> <span class="muted">(o /<?= e($dbResult['project']) ?>/)</span></dd>
                 </div>
                 <div><dt>Base de datos</dt><dd><code><?= e($dbResult['database']) ?></code></dd></div>
                 <div><dt>Usuario</dt><dd><code><?= e($dbResult['user']) ?></code></dd></div>
