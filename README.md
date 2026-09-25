@@ -46,7 +46,7 @@
 | **Cache y Memoria** | Redis Server local + extension PHP `php-redis` |
 | **Base de Datos** | MariaDB 11.8 con acceso administrativo dual (`localhost` y `127.0.0.1`) |
 | **Panel de BD** | phpMyAdmin 5.x sobre subdominio dedicado, sin advertencias de almacenamiento |
-| **Panel y Control Web** | Panel de administracion y salud en el dominio base (`https://empresa.local`) con creacion de proyectos, aprovisionamiento de BD, diagnosticos y telemetria en vivo |
+| **Panel y Control Web** | Panel de Control minimalista en el dominio base (`https://empresa.local`) con login, resumen de salud, gestion de proyectos y bases de datos, seguridad, certificados, respaldos, diagnostico y descargas |
 | **Subdominios Dinamicos** | Creacion instantanea de proyectos en `/var/www/<proyecto>/public_html` |
 | **Comparticion de Archivos**| Recurso unico Samba SMBv3 `[proyectos]` con mapeo resiliente (`Z:\` a `T:\`) |
 | **Seguridad de Red** | UFW (puertos 22, 80, 443, 445, 3389) + Fail2ban |
@@ -277,7 +277,7 @@ srvctl [comando] [argumentos]
 │   ├── web/dashboard.sh        # Panel de salud y recursos descargables
 │   └── web/ssl.sh              # Autoridad CA raiz y certificado comodin
 ├── templates/
-│   ├── dashboard/              # Codigo fuente del panel de salud
+│   ├── dashboard/              # Panel de Control (index.php, app/, views/, partials/, assets/)
 │   └── windows/                # Scripts batch .bat de aprovisionamiento
 └── tests/
     └── test_validator.sh       # Suite de pruebas unitarias y chaos testing
