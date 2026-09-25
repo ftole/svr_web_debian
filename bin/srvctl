@@ -600,7 +600,13 @@ api_database() {
         first=0
         printf '{"user":"%s","host":"%s"}' "$(json_escape "$user")" "$(json_escape "$host")"
     done < <(mariadb -N -e "SELECT User, Host FROM mysql.user WHERE User NOT IN ('', 'root', 'pma') ORDER BY User, Host;" 2>/dev/null || true)
-    printf ']}\n'
+    printf ']'
+    local q_threads="" q_running="" q_queries="" q_uptime="" qps="0"
+    IFS=$'\t' read -r q_threads q_running q_queries q_uptime < <(mariadb -N -e "SELECT (SELECT VARIABLE_VALUE FROM information_schema.GLOBAL_STATUS WHERE VARIABLE_NAME='Threads_connected'), (SELECT VARIABLE_VALUE FROM information_schema.GLOBAL_STATUS WHERE VARIABLE_NAME='Threads_running'), (SELECT VARIABLE_VALUE FROM information_schema.GLOBAL_STATUS WHERE VARIABLE_NAME='Queries'), (SELECT VARIABLE_VALUE FROM information_schema.GLOBAL_STATUS WHERE VARIABLE_NAME='Uptime');" 2>/dev/null || true)
+    if [ -n "${q_queries:-}" ] && [ -n "${q_uptime:-}" ]; then
+        qps="$(awk -v q="$q_queries" -v u="$q_uptime" 'BEGIN { if (u < 1) u = 1; printf "%.1f", q / u }')"
+    fi
+    printf ',"status":{"threads":%s,"running":%s,"qps":%s}}\n' "${q_threads:-0}" "${q_running:-0}" "${qps:-0}"
 }
 
 cmd_api() {
