@@ -132,6 +132,25 @@ function panel_run(string $command, int $timeout = 0): array
             return [$code, trim($buffer)];
         }
     }
-    @exec($command . ' 2>&1', $out, $code);
+    if (function_exists('exec')) {
+        exec($command . ' 2>&1', $out, $code);
+    }
     return [$code, implode("\n", $out)];
 }
+
+function panel_run_async(string $command): string
+{
+    $taskId = uniqid('task_');
+    $logFile = '/var/www/_dashboard/tasks/' . $taskId . '.log';
+    
+    // Asegurar que el directorio de tareas existe
+    if (!is_dir('/var/www/_dashboard/tasks')) {
+        @mkdir('/var/www/_dashboard/tasks', 0755, true);
+    }
+    
+    $fullCommand = 'nohup ' . $command . ' > ' . escapeshellarg($logFile) . ' 2>&1 & echo $!';
+    exec($fullCommand);
+    
+    return $taskId;
+}
+
