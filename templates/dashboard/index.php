@@ -170,6 +170,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
             break;
 
+        case 'project_env_save':
+            $name = strtolower(trim((string)($_POST['project_name'] ?? '')));
+            $content = (string)($_POST['env_content'] ?? '');
+            if (!preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', $name)) {
+                $respond(false, 'Nombre de proyecto inválido.', 'projects');
+            } elseif (!is_dir('/var/www/' . $name)) {
+                $respond(false, "El proyecto '{$name}' no existe.", 'projects');
+            } else {
+                if (panel_write_env($name, $content)) {
+                    $respond(true, "Variables de entorno (.env) guardadas para '{$name}'.", 'projects');
+                } else {
+                    $respond(false, "No se pudo guardar el archivo .env (Revisa permisos).", 'projects');
+                }
+            }
+            break;
+
         case 'project_delete':
             $name = strtolower(trim((string)($_POST['project_name'] ?? '')));
             $force = (($_POST['force'] ?? '0') === '1');
@@ -197,6 +213,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $respond(true, 'Respaldo completado correctamente.', 'backups');
             } else {
                 $respond(false, 'Error al ejecutar el respaldo: ' . $output, 'backups');
+            }
+            break;
+
+        case 'backup_restore_project':
+            $name = strtolower(trim((string)($_POST['project_name'] ?? '')));
+            $snapshot = trim((string)($_POST['snapshot_name'] ?? 'daily.0'));
+            if (empty($snapshot) || !preg_match('/^[a-zA-Z0-9_\.-]+$/', $snapshot)) {
+                $respond(false, 'Nombre de snapshot inválido.', 'projects');
+            } else {
+                [$code, $output] = panel_srvctl(['backup', 'rollback', $snapshot], 120);
+                if ($code === 0) {
+                    $respond(true, "Respaldo '{$snapshot}' restaurado correctamente.", 'projects');
+                } else {
+                    $respond(false, "Error al restaurar: " . $output, 'projects');
+                }
             }
             break;
 

@@ -154,3 +154,24 @@ function panel_run_async(string $command): string
     return $taskId;
 }
 
+function panel_read_env(string $project): string
+{
+    if (!preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/', $project)) {
+        return '';
+    }
+    $path = '/var/www/' . $project . '/public_html/.env';
+    if (is_file($path) && is_readable($path)) {
+        return (string)file_get_contents($path);
+    }
+    return '';
+}
+
+function panel_write_env(string $project, string $content): bool
+{
+    if (!preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/', $project)) {
+        return false;
+    }
+    $path = '/var/www/' . $project . '/public_html/.env';
+    return file_put_contents($path, $content) !== false;
+}
+

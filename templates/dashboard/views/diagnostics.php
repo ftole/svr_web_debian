@@ -42,3 +42,10 @@ $verify = $_SESSION['verify_result'] ?? null;
         <div class="empty"><p class="muted">Ejecuta el diagnóstico para ver los resultados.</p></div>
     <?php endif; ?>
 </section>
+
+<section class="card">
+    <div class="card-head">
+        <h2>Visor de Logs (error.log)</h2>
+    </div>
+    <pre class="terminal"><?= e(panel_get_error_logs()) ?></pre>
+</section>

@@ -37,6 +37,8 @@ unset($_SESSION['db_result']);
                     <li><strong>Actualizado:</strong> <?= e($project['updated']) ?></li>
                 </ul>
                 <div class="project-actions">
+                    <button type="button" class="btn btn-outline btn-sm" data-open-modal="modal-env-<?= e($project['name']) ?>">Editar .env</button>
+                    <button type="button" class="btn btn-outline btn-sm" data-open-modal="modal-restore-<?= e($project['name']) ?>">Restaurar Backup</button>
                     <form method="POST" action="/" data-loading="Aprovisionando base de datos…">
                         <input type="hidden" name="action" value="project_db">
                         <input type="hidden" name="_page" value="projects">
@@ -45,6 +47,46 @@ unset($_SESSION['db_result']);
                         <button type="submit" class="btn btn-outline btn-sm"><?= $project['has_db'] ? 'Regenerar BD' : 'Crear BD' ?></button>
                     </form>
                     <button type="button" class="btn btn-danger btn-sm" data-delete-project="<?= e($project['name']) ?>" data-base="<?= $project['is_base'] ? '1' : '0' ?>">Eliminar</button>
+                </div>
+            </div>
+
+            <!-- Modales para <?= e($project['name']) ?> -->
+            <div id="modal-env-<?= e($project['name']) ?>" class="modal-overlay">
+                <div class="modal">
+                    <h3>Editar .env - <?= e($project['name']) ?></h3>
+                    <form method="POST" action="/" data-loading="Guardando .env…">
+                        <input type="hidden" name="action" value="project_env_save">
+                        <input type="hidden" name="_page" value="projects">
+                        <input type="hidden" name="project_name" value="<?= e($project['name']) ?>">
+                        <?= panel_csrf_field() ?>
+                        <div class="field">
+                            <textarea name="env_content" class="input" rows="10" style="font-family: monospace;"><?= e(panel_read_env($project['name'])) ?></textarea>
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-outline" data-close-modal>Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Guardar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <div id="modal-restore-<?= e($project['name']) ?>" class="modal-overlay">
+                <div class="modal">
+                    <h3>Restaurar Backup - <?= e($project['name']) ?></h3>
+                    <form method="POST" action="/" data-loading="Restaurando backup…">
+                        <input type="hidden" name="action" value="backup_restore_project">
+                        <input type="hidden" name="_page" value="projects">
+                        <input type="hidden" name="project_name" value="<?= e($project['name']) ?>">
+                        <?= panel_csrf_field() ?>
+                        <div class="field">
+                            <span>Fecha/Nombre del Snapshot</span>
+                            <input type="text" name="snapshot_name" class="input" required placeholder="ej. 2023-10-25">
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-outline" data-close-modal>Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Restaurar</button>
+                        </div>
+                    </form>
                 </div>
             </div>
         <?php endforeach; ?>

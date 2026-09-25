@@ -246,8 +246,22 @@
         bindToggles();
         bindCopy();
         bindPasswordToggles();
+        bindThemeToggle();
     }
     window.panelBind = panelBind;
+
+    function bindThemeToggle() {
+        var btn = document.getElementById('theme-toggle');
+        if (btn && !btn.getAttribute('data-bound')) {
+            btn.setAttribute('data-bound', '1');
+            btn.addEventListener('click', function() {
+                var currentTheme = document.documentElement.getAttribute('data-theme');
+                var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+            });
+        }
+    }
 
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') {

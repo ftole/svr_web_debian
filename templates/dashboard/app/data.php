@@ -298,3 +298,17 @@ function panel_samba(): ?array
 {
     return panel_srvctl_api('samba');
 }
+
+function panel_get_active_connections(): int
+{
+    if (!function_exists('shell_exec')) return 0;
+    $out = shell_exec("ss -nt state established '( sport = :80 or sport = :443 )' | wc -l");
+    $count = (int)trim((string)$out);
+    return max(0, $count - 1);
+}
+
+function panel_get_error_logs(int $lines = 100): string
+{
+    if (!function_exists('shell_exec')) return '';
+    return (string)shell_exec('tail -n ' . (int)$lines . ' /var/log/apache2/error.log 2>/dev/null');
+}

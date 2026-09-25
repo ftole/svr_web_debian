@@ -37,6 +37,11 @@ $backups = panel_backups();
         <span class="metric-value small"><span id="live-net-tx">—</span> ↑</span>
         <span class="metric-foot">Temp: <span id="live-temp">—</span> · Uptime: <span id="live-uptime"><?= e($overview['uptime_text']) ?></span></span>
     </div>
+    <div class="card metric">
+        <span class="metric-label">Conexiones Web</span>
+        <span class="metric-value"><span><?= panel_get_active_connections() ?></span></span>
+        <span class="metric-foot">Activas en puertos 80/443</span>
+    </div>
 </section>
 
 <section class="grid grid-3">
