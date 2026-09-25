@@ -14,11 +14,16 @@ require_once $PANEL_ROOT . '/app/helpers.php';
 require_once $PANEL_ROOT . '/app/config.php';
 require_once $PANEL_ROOT . '/app/srvctl.php';
 require_once $PANEL_ROOT . '/app/data.php';
+require_once $PANEL_ROOT . '/app/metrics.php';
 require_once $PANEL_ROOT . '/app/auth.php';
 
 $CONFIG = panel_load_config();
 
 if (session_status() === PHP_SESSION_NONE) {
+    ini_set('session.use_strict_mode', '1');
+    ini_set('session.use_only_cookies', '1');
+    ini_set('session.cookie_httponly', '1');
+    ini_set('session.gc_maxlifetime', '1800');
     session_name('SRVCTL_PANEL');
     session_set_cookie_params([
         'lifetime' => 0,
