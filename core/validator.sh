@@ -4,9 +4,9 @@
 # ==============================================================================
 set -eo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
-[ -f "${SCRIPT_DIR}/logger.sh" ] && . "${SCRIPT_DIR}/logger.sh"
+[ -f "${CORE_DIR}/logger.sh" ] && . "${CORE_DIR}/logger.sh"
 
 validate_root() {
     if [ "$(id -u)" -ne 0 ]; then
