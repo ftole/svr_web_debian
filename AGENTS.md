@@ -9,7 +9,7 @@ Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.
 **SSL comodín interno**, Samba SMBv3 (recurso maestro `[proyectos]`), UFW + Fail2ban y respaldos rotativos de 7 días.
 
 - **CLI principal:** `srvctl` instalado en `/usr/local/bin/srvctl` (orquestación modular con TUI interactiva y subcomandos).
-- **Ruteo web:** Dominio base para Dashboard de bienvenida y salud (`_dashboard`). Subdominios dinámicos sin configuración para nuevos proyectos vía `mod_vhost_alias`.
+- **Ruteo web:** Dominio base para Dashboard de bienvenida y salud (`_dashboard`). Acceso dual simultáneo: subdominios dinámicos sin configuración vía `mod_vhost_alias` (`https://<proyecto>.empresa.local`) y acceso por ruta directa en el dominio base o por IP (`https://empresa.local/<proyecto>/` y `https://<IP>/<proyecto>/`). phpMyAdmin disponible en `webdev.empresa.local` y por alias en `/phpmyadmin` o `/webdev`.
 - **Resolución DNS:** Delegada preferentemente a **Pi-hole** (recomendado mediante `address=/.empresa.local/<IP>`), o bien mediante router local (dnsmasq/MikroTik/pfSense), dominio público con comodín o archivo `hosts`. Debian **no** ejecuta servicios DNS locales.
 - **Repositorio:** `https://github.com/ftole/svr_web_debian` (rama `main`, **público**).
 - **Titular/licencia:** propietaria — `José Francisco Toledo` <cisco_red@outlook.com> (ver `LICENSE`).
@@ -114,6 +114,7 @@ Comprobar: `gh run list --limit 3`.
 8. **Scripts Windows 1-Clic (.bat):** Ambos `.bat` inyectan la resolucion de los subdominios en el archivo `hosts` del cliente (entornos sin DNS comodin). `configurar-cliente.bat` ademas instala la CA raiz para evitar alertas SSL; `configurar-desarrollador.bat` anade `EnableLinkedConnections`, mapea la unidad `Z:\` a `\\IP\proyectos` y configura el alias SSH `web`.
 9. **Usuario de instalación del SO:** El primer UID ≥ 1000 con shell se anade a `sudo` por defecto.
 10. **Aprovisionamiento Automático DB:** `srvctl project db <nombre>` genera la base de datos MariaDB, usuario dedicado y archivo `.env` en `public_html`.
+11. **Compatibilidad de Acceso Dual (Subdominio y Ruta):** En `00-dashboard.conf`, Apache mapea mediante mod_rewrite cualquier ruta que coincida con una carpeta de proyecto existente en `/var/www/<nombre>/public_html` con forzado de barra final (301) para preservar hipervínculos relativos. Los recursos internos del Dashboard (`app`, `assets`, `downloads`, `partials`, `views`), `not_found.php` y phpMyAdmin (`/phpmyadmin`, `/${DB_SUB}`) quedan reservados y protegidos.
 
 ## 9. Seguridad
 
