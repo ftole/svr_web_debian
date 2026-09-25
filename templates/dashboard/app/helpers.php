@@ -12,8 +12,37 @@ function e(?string $value): string
 
 function panel_url(string $page = 'overview', array $params = []): string
 {
-    $params = array_merge(['page' => $page], $params);
-    return '?' . http_build_query($params);
+    return '/';
+}
+
+function panel_render_section(string $page, array $CONFIG, string $PANEL_ROOT): string
+{
+    $services = panel_services();
+    $flashes = [];
+    ob_start();
+    require $PANEL_ROOT . '/views/' . $page . '.php';
+    return (string)ob_get_clean();
+}
+
+function panel_pages(): array
+{
+    return ['overview', 'projects', 'database', 'services', 'security', 'ssl', 'backups', 'diagnostics', 'downloads', 'settings'];
+}
+
+function panel_page_titles(): array
+{
+    return [
+        'overview'    => 'Resumen',
+        'projects'    => 'Proyectos',
+        'database'    => 'Bases de datos',
+        'services'    => 'Servicios',
+        'security'    => 'Seguridad',
+        'ssl'         => 'Certificados',
+        'backups'     => 'Respaldos',
+        'diagnostics' => 'Diagnóstico',
+        'downloads'   => 'Descargas',
+        'settings'    => 'Configuración',
+    ];
 }
 
 function panel_format_bytes($bytes): string
@@ -64,7 +93,8 @@ function panel_csrf_check(): void
 
 function panel_redirect(string $page, array $params = []): void
 {
-    header('Location: ' . panel_url($page, $params));
+    $_SESSION['page'] = $page;
+    header('Location: /');
     exit;
 }
 
