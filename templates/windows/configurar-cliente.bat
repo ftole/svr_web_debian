@@ -1,7 +1,7 @@
 @echo off
 setlocal EnableDelayedExpansion
 :: ==============================================================================
-:: configurar-cliente.bat - Configuracion de confianza SSL para clientes
+:: configurar-cliente.bat - Resolucion de nombres (hosts) y confianza SSL
 :: Ejecutar como ADMINISTRADOR en Windows
 :: ==============================================================================
 title Configuracion de Cliente Web
@@ -15,14 +15,18 @@ if %errorLevel% neq 0 (
 )
 
 set "SERVER_IP=__SERVER_IP__"
+set "HOSTS=%SystemRoot%\System32\drivers\etc\hosts"
 set "CERT_UNC=\\%SERVER_IP%\proyectos\_dashboard\downloads\rootCA.crt"
 set "CERT_TMP=%TEMP%\rootCA.crt"
 
 echo ==============================================================================
-echo    CONFIGURACION DE CONFIANZA SSL - %SERVER_IP%
+echo    CONFIGURACION DE CLIENTE - %SERVER_IP%
 echo ==============================================================================
 echo.
-echo [1/2] Obteniendo Certificado SSL Raiz...
+echo [1/3] Inyectando resolucion de nombres en el archivo hosts...
+:: __HOSTS_CALLS__
+echo.
+echo [2/3] Obteniendo Certificado SSL Raiz...
 if exist "%CERT_TMP%" del "%CERT_TMP%" >nul 2>&1
 
 where curl.exe >nul 2>&1
@@ -49,7 +53,7 @@ if not exist "%CERT_TMP%" (
     exit /b 1
 )
 
-echo [2/2] Instalando Certificado Raiz en Windows [Entidades de Confianza]...
+echo [3/3] Instalando Certificado Raiz en Windows [Entidades de Confianza]...
 certutil -addstore -f "Root" "%CERT_TMP%" >nul
 set "CERT_STATUS=!errorlevel!"
 del "%CERT_TMP%" >nul 2>&1
@@ -65,3 +69,15 @@ if "!CERT_STATUS!"=="0" (
 echo ==============================================================================
 echo.
 pause
+exit /b
+
+:add_host
+attrib -r "%HOSTS%" >nul 2>&1
+findstr /i /c:"%SERVER_IP% %~1" "%HOSTS%" >nul 2>&1
+if errorlevel 1 (
+    >>"%HOSTS%" echo %SERVER_IP% %~1
+    echo       [OK] hosts: %~1 -^> %SERVER_IP%
+) else (
+    echo       [INFO] hosts ya contiene %~1
+)
+exit /b
