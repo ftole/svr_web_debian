@@ -30,7 +30,7 @@ Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.
 | `modules/share/` | Servidor Samba SMBv3 con recurso unificado `[proyectos]` sobre `/var/www`. |
 | `modules/backup/` | Sistema de respaldos diarios por snapshots rotativos de 7 dias y volcados SQL. |
 | `templates/dashboard/` | Codigo fuente del centro de administracion web, control y salud (`index.php`, `not_found.php`). |
-| `templates/windows/` | Scripts de aprovisionamiento en 1 clic para clientes (`configurar-cliente.bat`, `configurar-desarrollador.bat`, `.ps1`). |
+| `templates/windows/` | Scripts de aprovisionamiento en 1 clic para clientes (`configurar-cliente.bat`, `configurar-desarrollador.bat`) con inyeccion de resolucion en el archivo `hosts`. |
 | `tests/test_validator.sh` | Suite de pruebas unitarias automatizadas y chaos testing de validacion de entradas. |
 | `install.sh` | Bootstrap de instalacion via `curl`: descarga a `/opt/srvctl` y enlaza el CLI global. |
 | `README.md` | Manual principal y documentacion de arquitectura. |
@@ -111,7 +111,7 @@ Comprobar: `gh run list --limit 3`.
 5. **Twig ≥ 3.21:** Parche idempotente en `/usr/share/php/PhpMyAdmin/Twig/Extensions/TokenParser/TransTokenParser.php` (`getExpressionParser()->parseExpression()` -> `parseExpression()`) y limpieza de cache Twig.
 6. **Paridad Hostinger:** Inclusion de Redis Server (`redis-server`), extension `php-redis` y binario global de Composer 2.x en `/usr/local/bin/composer`.
 7. **Recurso Samba Unificado `[proyectos]`:** Mapeo unico a `/var/www` con permisos SGID `2775`, `force group = www-data`, y directiva `veto files` para ocultar `.git`, `.env`, `.htaccess`, `_dashboard` y llaves `.key`.
-8. **Scripts Windows 1-Clic (.bat / .ps1):** `configurar-cliente.bat` instala la CA raiz para evitar alertas SSL en navegadores; `configurar-desarrollador.bat` y `.ps1` anaden `EnableLinkedConnections`, mapean la unidad `Z:\` a `\\IP\proyectos` y configuran el alias SSH `web`.
+8. **Scripts Windows 1-Clic (.bat):** Ambos `.bat` inyectan la resolucion de los subdominios en el archivo `hosts` del cliente (entornos sin DNS comodin). `configurar-cliente.bat` ademas instala la CA raiz para evitar alertas SSL; `configurar-desarrollador.bat` anade `EnableLinkedConnections`, mapea la unidad `Z:\` a `\\IP\proyectos` y configura el alias SSH `web`.
 9. **Usuario de instalación del SO:** El primer UID ≥ 1000 con shell se anade a `sudo` por defecto.
 10. **Aprovisionamiento Automático DB:** `srvctl project db <nombre>` genera la base de datos MariaDB, usuario dedicado y archivo `.env` en `public_html`.
 
