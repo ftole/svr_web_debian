@@ -2,13 +2,18 @@
 declare(strict_types=1);
 
 $subdomain = $_SERVER['HTTP_HOST'] ?? 'subdominio';
-$confFile = '/etc/asistente_servidor.conf';
 $baseDomain = 'empresa.local';
-if (file_exists($confFile)) {
-    $lines = file($confFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        if (str_starts_with(trim($line), 'BASE_DOMAIN=')) {
-            $baseDomain = trim(explode('=', $line, 2)[1], " '\t\n\r\0\x0B\"");
+$confFiles = ['/etc/srvctl.conf', '/etc/asistente_servidor.conf'];
+foreach ($confFiles as $cf) {
+    if (file_exists($cf) && is_readable($cf)) {
+        $lines = @file($cf, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($lines !== false) {
+            foreach ($lines as $line) {
+                if (str_starts_with(trim($line), 'BASE_DOMAIN=')) {
+                    $baseDomain = trim(explode('=', $line, 2)[1], " '\t\n\r\0\x0B\"");
+                    break 2;
+                }
+            }
         }
     }
 }
