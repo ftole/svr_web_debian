@@ -12,13 +12,21 @@ if (-not $isAdmin) {
 
 $ServerIP   = "__SERVER_IP__"
 $AdminUser  = "__ADMIN_USER__"
-$AdminPass  = "__ADMIN_PASS__"
 $SharePath  = "\\$ServerIP\proyectos"
 $CertTmp    = "$env:TEMP\rootCA.crt"
 
 Write-Host "==============================================================================" -ForegroundColor Cyan
 Write-Host "    CONFIGURACION DEL ENTORNO DE DESARROLLADOR - $ServerIP" -ForegroundColor Cyan
 Write-Host "==============================================================================" -ForegroundColor Cyan
+
+$securePass = Read-Host -Prompt "Contrasena de $AdminUser@$ServerIP" -AsSecureString
+$AdminPass  = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
+    [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePass)
+)
+if ([string]::IsNullOrEmpty($AdminPass)) {
+    Write-Host "[ERROR] Debes indicar la contrasena del usuario $AdminUser para continuar." -ForegroundColor Red
+    Exit 1
+}
 
 # 1. Certificado SSL Raiz
 Write-Host "`n[1/5] Instalando Certificado SSL Raiz..." -ForegroundColor Green
