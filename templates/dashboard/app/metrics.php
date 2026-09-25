@@ -227,28 +227,15 @@ function panel_metrics_redis(): array
 
 function panel_metrics_mariadb(array $conf): array
 {
-    if (!class_exists('mysqli')) {
+    $data = panel_srvctl_api('database');
+    if (!is_array($data) || !isset($data['status'])) {
         return ['ok' => false];
     }
-    $mysqli = @new mysqli('127.0.0.1', (string)$conf['ADMIN_USER'], (string)$conf['ADMIN_PASS'], '', 3306);
-    if ($mysqli->connect_errno) {
-        return ['ok' => false];
-    }
-    $status = [];
-    if ($res = $mysqli->query("SHOW GLOBAL STATUS WHERE Variable_name IN ('Threads_connected','Threads_running','Queries','Uptime')")) {
-        while ($row = $res->fetch_assoc()) {
-            $status[$row['Variable_name']] = (int)$row['Value'];
-        }
-        $res->free();
-    }
-    $mysqli->close();
-    $queries = $status['Queries'] ?? 0;
-    $uptime = max(1, $status['Uptime'] ?? 1);
     return [
         'ok'      => true,
-        'threads' => $status['Threads_connected'] ?? 0,
-        'running' => $status['Threads_running'] ?? 0,
-        'qps'     => round($queries / $uptime, 1),
+        'threads' => (int)($data['status']['threads'] ?? 0),
+        'running' => (int)($data['status']['running'] ?? 0),
+        'qps'     => (float)($data['status']['qps'] ?? 0),
     ];
 }
 
