@@ -77,18 +77,43 @@ deploy_dashboard() {
     find "${dash_dir}" -type d -exec chmod 2775 {} \;
     find "${dash_dir}" -type f -exec chmod 0664 {} \;
 
-    # Regla sudoers de minimo privilegio: solo los subcomandos que usa el panel
+    # Wrapper seguro para evitar comodines en sudoers
+    cat > /usr/local/bin/srvctl-web-wrapper <<'EOF'
+#!/bin/bash
+# Wrapper seguro para invocar srvctl desde PHP
+read -r ACTION TARGET EXTRA <<< "$SRVCTL_CMD"
+case "$ACTION" in
+    "project")
+        if [[ "$TARGET" =~ ^(create|delete|db)$ ]] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+            exec /usr/local/bin/srvctl project "$TARGET" "$EXTRA"
+        fi
+        ;;
+    "backup")
+        if [ "$TARGET" = "run" ]; then
+            exec /usr/local/bin/srvctl backup run
+        elif [ "$TARGET" = "rollback" ] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_\.-]+$ ]]; then
+            exec /usr/local/bin/srvctl backup rollback "$EXTRA"
+        fi
+        ;;
+    "verify")
+        exec /usr/local/bin/srvctl verify
+        ;;
+    "api")
+        if [[ "$TARGET" =~ ^(security|samba|database)$ ]]; then
+            exec /usr/local/bin/srvctl api "$TARGET"
+        fi
+        ;;
+esac
+echo "Error: Comando o parametros no permitidos."
+exit 1
+EOF
+    chmod 0755 /usr/local/bin/srvctl-web-wrapper
+
+    # Regla sudoers de minimo privilegio: sin comodines
     mkdir -p /etc/sudoers.d
     cat > /etc/sudoers.d/srvctl-web <<'EOF'
-www-data ALL=(ALL) NOPASSWD: /usr/local/bin/srvctl project create *, \
-                               /usr/local/bin/srvctl project db *, \
-                               /usr/local/bin/srvctl project delete *, \
-                               /usr/local/bin/srvctl backup run, \
-                               /usr/local/bin/srvctl backup rollback *, \
-                               /usr/local/bin/srvctl verify, \
-                               /usr/local/bin/srvctl api security, \
-                               /usr/local/bin/srvctl api samba, \
-                               /usr/local/bin/srvctl api database
+Defaults!/usr/local/bin/srvctl-web-wrapper env_keep += "SRVCTL_CMD"
+www-data ALL=(ALL) NOPASSWD: /usr/local/bin/srvctl-web-wrapper
 EOF
     chmod 0440 /etc/sudoers.d/srvctl-web
 
