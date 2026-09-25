@@ -39,14 +39,12 @@ deploy_dashboard() {
     if [ -f "${tpl_dir}/windows/configurar-desarrollador.bat" ]; then
         sed -e "s/__SERVER_IP__/${SERVER_IP}/g" \
             -e "s/__ADMIN_USER__/${ADMIN_USER}/g" \
-            -e "s/__ADMIN_PASS__/${ADMIN_PASS}/g" \
             "${tpl_dir}/windows/configurar-desarrollador.bat" > "${dl_dir}/configurar-desarrollador.bat"
     fi
 
     if [ -f "${tpl_dir}/windows/configurar-desarrollador.ps1" ]; then
         sed -e "s/__SERVER_IP__/${SERVER_IP}/g" \
             -e "s/__ADMIN_USER__/${ADMIN_USER}/g" \
-            -e "s/__ADMIN_PASS__/${ADMIN_PASS}/g" \
             "${tpl_dir}/windows/configurar-desarrollador.ps1" > "${dl_dir}/configurar-desarrollador.ps1"
     fi
 
