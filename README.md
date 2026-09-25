@@ -192,7 +192,7 @@ sequenceDiagram
    - Abra el navegador e ingrese a `https://empresa.local`.
    - En la seccion de descargas, haga clic en `configurar-desarrollador.bat`.
    - Ejecute el archivo con clic derecho -> **Ejecutar como administrador**.
-   - Esto instalara el certificado SSL de confianza, configurara el acceso SSH y montara la unidad **`Z:\`** conectada a `\\<IP>\proyectos`.
+   - Esto inyectara la resolucion de los subdominios en el archivo `hosts`, instalara el certificado SSL de confianza, configurara el acceso SSH y montara la unidad **`Z:\`** conectada a `\\<IP>\proyectos`.
 
 2. **Crear un nuevo proyecto (Cero configuracion):**
    - Abra el Explorador de Windows y entre en la unidad `Z:\`.
@@ -211,7 +211,7 @@ Para los usuarios que unicamente consultaran las aplicaciones web desde la red l
 1. Ingrese a `https://empresa.local`.
 2. Descargue el archivo `configurar-cliente.bat`.
 3. Ejecute con clic derecho -> **Ejecutar como administrador**.
-4. El script importa la Autoridad Certificadora raiz (`rootCA.crt`) en el Almacen de Entidades de Certificacion de Confianza de Windows.
+4. El script inyecta la resolucion de los subdominios en el archivo `hosts` de Windows y luego importa la Autoridad Certificadora raiz (`rootCA.crt`) en el Almacen de Entidades de Certificacion de Confianza de Windows.
 5. Los navegadores (Chrome, Edge, Firefox) reconoceran cualquier subdominio del servidor con candado verde sin advertencias de seguridad.
 
 ---
