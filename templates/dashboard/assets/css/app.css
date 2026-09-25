@@ -277,31 +277,31 @@ h3 { font-size: 0.95rem; font-weight: 600; }
 /* ==========================================================================
    Login (Minimalist Premium UI)
    ========================================================================== */
-.login-body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; background-color: var(--bg); background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 24px 24px; }
-.login-wrapper { width: 100%; max-width: 380px; display: flex; flex-direction: column; align-items: center; gap: 24px; }
-.login-brand-top { display: flex; justify-content: center; margin-bottom: 8px; }
-.login-logo-modern { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: var(--text); color: var(--bg); border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
-.login-panel { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 40px 32px; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.04), 0 2px 4px rgba(0, 0, 0, 0.02); }
-.login-header { text-align: center; margin-bottom: 32px; }
-.login-title { font-size: 1.25rem; font-weight: 600; color: var(--text); margin-bottom: 6px; letter-spacing: -0.02em; }
-.login-subtitle { font-size: 0.875rem; color: var(--muted); }
-.login-form { display: flex; flex-direction: column; gap: 20px; }
-.login-field-group { display: flex; flex-direction: column; gap: 8px; }
-.login-label { font-size: 0.8125rem; font-weight: 500; color: var(--text-soft); }
+.login-body { margin: 0; padding: 0; }
+.split-layout { display: grid; grid-template-columns: 1fr 1fr; width: 100%; min-height: 100vh; }
+.brand-section { background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradientBG 15s ease infinite; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 4rem 10%; color: white; }
+@keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+.brand-section h1 { font-size: 3.5rem; font-weight: 700; line-height: 1.1; margin-bottom: 1rem; letter-spacing: -0.02em; }
+.brand-section p { font-size: 1.25rem; opacity: 0.9; font-weight: 300; }
+.form-section { display: flex; justify-content: center; align-items: center; padding: 2rem; background: var(--bg); position: relative; }
+.form-wrapper { width: 100%; max-width: 400px; display: flex; flex-direction: column; }
+.form-wrapper h2 { font-size: 2rem; font-weight: 600; margin-bottom: 0.5rem; letter-spacing: -0.01em; }
+.form-wrapper p.subtitle { color: var(--muted); margin-bottom: 2rem; }
+.input-group { margin-bottom: 1.25rem; }
+.input-group label { display: block; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem; color: var(--text-soft); }
+.input-group input { width: 100%; padding: 0.875rem 1rem; border: 1px solid var(--border); border-radius: 12px; font-size: 1rem; background-color: var(--surface); color: var(--text); transition: all 0.2s ease; font-family: inherit; }
+.input-group input:focus { outline: none; border-color: var(--text); background-color: var(--bg); box-shadow: 0 0 0 4px var(--focus-ring); }
 .login-input-wrapper { position: relative; display: flex; align-items: center; }
-.login-input { width: 100%; padding: 10px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; font-size: 0.875rem; color: var(--text); transition: all 0.2s ease; }
-.login-input:hover { border-color: var(--muted); }
-.login-input:focus { outline: none; border-color: var(--text); background: var(--surface); box-shadow: 0 0 0 1px var(--text); }
-.login-input-wrapper .login-input { padding-right: 40px; }
+.login-input-wrapper input { padding-right: 40px; }
 .pw-toggle { position: absolute; right: 12px; background: transparent; border: none; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 4px; transition: color 0.2s; }
 .pw-toggle:hover { color: var(--text); }
-.btn-modern { display: flex; align-items: center; justify-content: center; width: 100%; padding: 10px 16px; background: var(--text); color: var(--bg); border: 1px solid var(--text); border-radius: 8px; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.2s ease; margin-top: 8px; }
-.btn-modern:hover { background: var(--text-soft); border-color: var(--text-soft); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-.login-status-modern { display: inline-flex; align-items: center; gap: 8px; font-size: 0.75rem; font-weight: 500; padding: 6px 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); color: var(--text-soft); box-shadow: 0 2px 8px rgba(0,0,0,0.02); }
+.btn-primary { width: 100%; padding: 0.875rem; background-color: var(--text); color: var(--bg); border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s ease; margin-top: 1rem; }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); opacity: 0.9; }
+.login-footer-info { position: absolute; bottom: 1.5rem; left: 0; right: 0; text-align: center; font-size: 0.75rem; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+.login-status-modern { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.75rem; font-weight: 500; padding: 6px 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); color: var(--text-soft); margin: 1.5rem auto 0; width: fit-content; }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
 .login-status-modern.warn .status-dot { background: var(--warning); }
-.login-footer { text-align: center; font-size: 0.75rem; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
-.login-restricted { text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.65rem; }
+@media (max-width: 768px) { .split-layout { grid-template-columns: 1fr; } .brand-section { padding: 3rem 2rem; text-align: center; align-items: center; min-height: 40vh; } .brand-section h1 { font-size: 2.5rem; } .form-section { padding-bottom: 5rem; } }
 
 @media (max-width: 760px) {
     .layout { flex-direction: column; }
