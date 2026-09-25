@@ -47,9 +47,11 @@ echo "[deploy] Plataforma instalada en ${DEST_DIR}."
 echo "[deploy] Comando global disponible: srvctl"
 echo ""
 
-if [ -t 0 ]; then
+if [ "${ASISTENTE_NONINTERACTIVE:-0}" = "1" ]; then
     exec "$BIN_LINK" deploy
-elif exec 3< /dev/tty 2>/dev/null; then
+elif [ -t 0 ]; then
+    exec "$BIN_LINK" deploy
+elif [ -c /dev/tty ] && exec 3< /dev/tty 2>/dev/null; then
     exec 3<&-
     exec "$BIN_LINK" deploy < /dev/tty
 else
