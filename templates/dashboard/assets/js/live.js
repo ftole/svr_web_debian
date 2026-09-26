@@ -165,15 +165,27 @@
         setText('live-uptime', fmtUptime(fast.uptime));
 
         if (slow.services) { renderServices(slow.services); }
-        if (slow.redis && slow.redis.ok) {
-            setText('live-redis-mem', slow.redis.memory);
-            setText('live-redis-clients', slow.redis.clients);
-            setText('live-redis-ops', slow.redis.ops);
+        if (slow.redis) {
+            if (slow.redis.ok) {
+                setText('live-redis-mem', slow.redis.memory);
+                setText('live-redis-clients', slow.redis.clients);
+                setText('live-redis-ops', slow.redis.ops);
+            } else {
+                setText('live-redis-mem', '—');
+                setText('live-redis-clients', '—');
+                setText('live-redis-ops', '—');
+            }
         }
-        if (slow.mariadb && slow.mariadb.ok) {
-            setText('live-db-threads', slow.mariadb.threads);
-            setText('live-db-running', slow.mariadb.running);
-            setText('live-db-qps', slow.mariadb.qps);
+        if (slow.mariadb) {
+            if (slow.mariadb.ok) {
+                setText('live-db-threads', slow.mariadb.threads);
+                setText('live-db-running', slow.mariadb.running);
+                setText('live-db-qps', slow.mariadb.qps);
+            } else {
+                setText('live-db-threads', '—');
+                setText('live-db-running', '—');
+                setText('live-db-qps', '—');
+            }
         }
         if (slow.top) { renderTop(slow.top); }
 
