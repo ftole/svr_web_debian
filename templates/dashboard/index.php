@@ -250,8 +250,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $createDb = (($_POST['create_db'] ?? '0') === '1');
             $customDb = (($_POST['custom_db'] ?? '0') === '1');
             $dbName = strtolower(trim((string)($_POST['db_name'] ?? '')));
+            $reservedNames = [
+                'prod', 'stg', 'webdev', 'html', 'dashboard', '_dashboard',
+                'downloads', 'assets', 'app', 'views', 'partials', 'phpmyadmin',
+                'api', 'lost+found', 'mail', 'smtp', 'ftp', 'cpanel', 'server',
+                strtolower((string)($CONFIG['PROD_SUB'] ?? 'prod')),
+                strtolower((string)($CONFIG['STG_SUB'] ?? 'stg')),
+                strtolower((string)($CONFIG['DB_SUB'] ?? 'webdev')),
+            ];
             if (!preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', $name)) {
                 $respond(false, 'Nombre de proyecto inválido. Usa solo minúsculas, números y guiones.', 'projects');
+            } elseif (in_array($name, $reservedNames, true)) {
+                $respond(false, "El nombre '{$name}' está reservado por el sistema.", 'projects');
             } elseif (is_dir('/var/www/' . $name)) {
                 $respond(false, "El proyecto '{$name}' ya existe.", 'projects');
             } else {
@@ -312,8 +322,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         case 'project_delete':
             $name = strtolower(trim((string)($_POST['project_name'] ?? '')));
             $force = (($_POST['force'] ?? '0') === '1');
+            $protectedBases = [
+                'html', '_dashboard', 'dashboard',
+                strtolower((string)($CONFIG['PROD_SUB'] ?? 'prod')),
+                strtolower((string)($CONFIG['STG_SUB'] ?? 'stg')),
+                strtolower((string)($CONFIG['DB_SUB'] ?? 'webdev')),
+            ];
             if (!preg_match('/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/', $name)) {
                 $respond(false, 'Nombre de proyecto inválido.', 'projects');
+            } elseif (in_array($name, $protectedBases, true) && !$force) {
+                $respond(false, "No se permite eliminar proyectos base del sistema ('{$name}') sin confirmación forzada.", 'projects');
             } elseif (!is_dir('/var/www/' . $name)) {
                 $respond(false, "El proyecto '{$name}' no existe.", 'projects');
             } else {
@@ -471,7 +489,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $port = trim((string)($_POST['port'] ?? ''));
             $proto = strtolower(trim((string)($_POST['proto'] ?? 'tcp')));
             $comment = trim((string)($_POST['service'] ?? ''));
-            if (!preg_match('/^[0-9]{1,5}(:[0-9]{1,5})?$/', $port) || !in_array($proto, ['tcp', 'udp'], true)) {
+            $validPort = false;
+            if (preg_match('/^([0-9]{1,5})(:([0-9]{1,5}))?$/', $port, $pm)) {
+                $p1 = (int)$pm[1];
+                $p2 = !empty($pm[3]) ? (int)$pm[3] : $p1;
+                if ($p1 >= 1 && $p1 <= 65535 && $p2 >= 1 && $p2 <= 65535 && $p1 <= $p2) {
+                    $validPort = true;
+                }
+            }
+            if (!$validPort || !in_array($proto, ['tcp', 'udp'], true)) {
                 $respond(false, 'Puerto o protocolo no válido. Usa números entre 1 y 65535.', 'security');
             } else {
                 $rule = $port . '/' . $proto;
