@@ -71,6 +71,27 @@ EOF
     log "      Certificados SSL listos (*.${BASE_DOMAIN} e IP ${SERVER_IP})."
 }
 
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+renew_ssl() {
+    validate_root
+    load_config
+    log "[SSL] Regenerando par de claves y certificado comodin (*.${BASE_DOMAIN})..."
     generate_ssl
+    if command -v apache2ctl >/dev/null 2>&1; then
+        if apache2ctl configtest >/dev/null 2>&1; then
+            systemctl reload apache2 2>/dev/null || systemctl restart apache2 2>/dev/null || true
+            log "      Apache recargado con el nuevo certificado SSL."
+        else
+            log_warn "Sintaxis de Apache no valida. No se recargo el servicio."
+        fi
+    fi
+    log "[SSL] Renovacion de certificados completada exitosamente."
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    action="${1:-generate}"
+    case "$action" in
+        generate) generate_ssl ;;
+        renew)    renew_ssl ;;
+        *) die "Uso: $0 [generate|renew]" ;;
+    esac
 fi
