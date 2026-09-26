@@ -44,7 +44,9 @@
             return;
         }
         container.style.opacity = '0.5';
-        fetch('?action=section&name=' + encodeURIComponent(section), {
+        var token = window.SRVCTL_TOKEN || (window.localStorage && localStorage.getItem('srvctl_token')) || '';
+        var url = '?action=section&name=' + encodeURIComponent(section) + (token ? '&token=' + encodeURIComponent(token) : '');
+        fetch(url, {
             headers: { 'Accept': 'application/json' },
             cache: 'no-store'
         }).then(function (response) {
@@ -91,6 +93,11 @@
                     event.preventDefault();
                     return;
                 }
+                if (form.classList.contains('logout-form') || form.querySelector('input[name="action"][value="logout"]')) {
+                    if (window.localStorage) {
+                        localStorage.removeItem('srvctl_token');
+                    }
+                }
                 var loadingMessage = form.getAttribute('data-loading');
                 if (loadingMessage) {
                     event.preventDefault();
@@ -102,7 +109,15 @@
                     }
 
                     var formData = new FormData(form);
-                    fetch(form.getAttribute('action') || window.location.href, {
+                    var token = window.SRVCTL_TOKEN || (window.localStorage && localStorage.getItem('srvctl_token')) || '';
+                    if (token && !formData.get('token')) {
+                        formData.append('token', token);
+                    }
+                    var actionUrl = form.getAttribute('action') || window.location.href;
+                    if (token && !actionUrl.includes('token=')) {
+                        actionUrl += (actionUrl.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
+                    }
+                    fetch(actionUrl, {
                         method: form.method || 'POST',
                         body: formData,
                         headers: { 'Accept': 'application/json' }
@@ -118,6 +133,10 @@
                             showToast('success', data.message || 'Operación completada.');
                             var modal = form.closest('.modal-overlay');
                             if (modal) { closeModal(modal); }
+                            var activeNav = document.querySelector('.nav-item.active[data-section]');
+                            if (activeNav) {
+                                setTimeout(function () { navigate(activeNav.getAttribute('data-section')); }, 600);
+                            }
                         } else {
                             showToast('error', data.message || 'Ocurrió un error.');
                         }
@@ -247,8 +266,81 @@
         bindCopy();
         bindPasswordToggles();
         bindThemeToggle();
+        bindDevNotesToggle();
+        bindDownloads();
     }
     window.panelBind = panelBind;
+
+    function bindDownloads() {
+        document.querySelectorAll('a[href*="maqueta-template-srvctl"]').forEach(function(link) {
+            if (link.getAttribute('data-download-bound')) { return; }
+            link.setAttribute('data-download-bound', '1');
+            link.addEventListener('click', function(e) {
+                var url = link.getAttribute('href');
+                var filename = link.getAttribute('download') || 'maqueta-template-srvctl.zip';
+                e.preventDefault();
+                showToast('info', 'Preparando y descargando paquete (' + filename + ')...');
+                fetch(url, { cache: 'no-store' })
+                    .then(function(res) {
+                        if (!res.ok) throw new Error('Servidor retornó HTTP ' + res.status);
+                        return res.blob();
+                    })
+                    .then(function(blob) {
+                        if (blob.size < 5000) {
+                            throw new Error('El archivo descargado está incompleto (' + blob.size + ' bytes).');
+                        }
+                        var blobUrl = window.URL.createObjectURL(blob);
+                        var tempLink = document.createElement('a');
+                        tempLink.style.display = 'none';
+                        tempLink.href = blobUrl;
+                        tempLink.download = filename;
+                        document.body.appendChild(tempLink);
+                        tempLink.click();
+                        setTimeout(function() {
+                            document.body.removeChild(tempLink);
+                            window.URL.revokeObjectURL(blobUrl);
+                        }, 2000);
+                        showToast('success', 'Paquete descargado correctamente (' + Math.round(blob.size / 1024) + ' KB). Listo para descomprimir.');
+                    })
+                    .catch(function(err) {
+                        showToast('warn', 'Descargando directo: ' + err.message);
+                        window.location.href = url;
+                    });
+            });
+        });
+    }
+
+    function bindDevNotesToggle() {
+        var btn = document.getElementById('dev-notes-toggle');
+        var savedState = localStorage.getItem('srvctl_dev_notes');
+        
+        if (savedState === 'hidden') {
+            document.body.classList.add('hide-dev-notes');
+        } else {
+            document.body.classList.remove('hide-dev-notes');
+        }
+
+        function updateBtnState() {
+            if (!btn) { return; }
+            var isHidden = document.body.classList.contains('hide-dev-notes');
+            btn.classList.toggle('active', !isHidden);
+            var label = btn.querySelector('.dev-notes-btn-text');
+            if (label) {
+                label.textContent = isHidden ? 'Ver Notas Backend' : 'Notas Backend';
+            }
+        }
+        updateBtnState();
+
+        if (btn && !btn.getAttribute('data-bound')) {
+            btn.setAttribute('data-bound', '1');
+            btn.addEventListener('click', function() {
+                var isHidden = document.body.classList.toggle('hide-dev-notes');
+                localStorage.setItem('srvctl_dev_notes', isHidden ? 'hidden' : 'visible');
+                updateBtnState();
+                showToast('info', isHidden ? 'Notas de especificación ocultadas (Vista Maqueta).' : 'Notas de especificación técnica activadas para el desarrollador.');
+            });
+        }
+    }
 
     function bindThemeToggle() {
         var btn = document.getElementById('theme-toggle');
