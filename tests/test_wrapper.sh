@@ -7,7 +7,9 @@ chmod +x /tmp/test-srvctl-wrapper.sh
 
 echo "Verificando sintaxis del wrapper..."
 bash -n /tmp/test-srvctl-wrapper.sh
-shellcheck -S warning /tmp/test-srvctl-wrapper.sh
+if command -v shellcheck >/dev/null 2>&1; then
+    shellcheck -S warning /tmp/test-srvctl-wrapper.sh
+fi
 echo "[OK] Sintaxis del wrapper valida."
 
 # Crear un mock de /usr/local/bin/srvctl para probar ejecuciones
