@@ -14,6 +14,7 @@ if (($_GET['action'] ?? '') === 'metrics') {
         exit;
     }
     panel_touch();
+    session_write_close();
     $payload = [
         't'    => time(),
         'fast' => panel_metrics_fast(),
@@ -94,6 +95,7 @@ if (($_GET['action'] ?? '') === 'live_logs' || str_starts_with($_SERVER['REQUEST
         exit;
     }
     panel_touch();
+    session_write_close();
     $since = (int)($_GET['since'] ?? 0);
     $logs = panel_live_logs($since);
     echo json_encode(['logs' => $logs], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
@@ -121,19 +123,32 @@ if ($isDownloadAction || $isDbUrl || $isConfUrl) {
 
     if ($type === 'db') {
         $proj = strtolower(trim((string)($_GET['project'] ?? '')));
-        if (!preg_match('/^[a-z0-9_\-]+$/', $proj)) {
+        if (!preg_match('/^[a-z0-9][a-z0-9\-]*[a-z0-9]?$/', $proj) || strlen($proj) > 63) {
             http_response_code(400);
-            echo 'Nombre de proyecto o base de datos no válido.';
+            echo 'Nombre de proyecto no válido.';
             exit;
         }
-        $sql = panel_dump_db($proj, $CONFIG);
-        $filename = $proj . '_db.sql';
+        session_write_close();
+        $filePath = panel_dump_db($proj, $CONFIG);
+        if ($filePath === '' || !is_file($filePath) || !is_readable($filePath)) {
+            http_response_code(404);
+            echo 'No se encontró volcado de base de datos para este proyecto.';
+            exit;
+        }
+        $isTmp = str_starts_with($filePath, sys_get_temp_dir());
+        $filename = $proj . '_db_' . date('Ymd') . '.sql';
+        $fsize = filesize($filePath);
         header('Content-Type: application/sql; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Content-Length: ' . (string)strlen($sql));
+        if ($fsize !== false) {
+            header('Content-Length: ' . $fsize);
+        }
         header('Cache-Control: private, no-cache, no-store, must-revalidate');
         header('Pragma: no-cache');
-        echo $sql;
+        readfile($filePath);
+        if ($isTmp) {
+            @unlink($filePath);
+        }
         exit;
     }
 
@@ -316,6 +331,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             break;
 
         case 'backup_run':
+            session_write_close();
             [$code, $output] = panel_srvctl(['backup', 'run'], 120);
             if ($code === 0) {
                 $respond(true, 'Respaldo completado correctamente.', 'backups');
@@ -505,6 +521,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
         // SSL / TLS
         case 'ssl_regenerate':
+            session_write_close();
             [$code, $output] = panel_srvctl(['ssl', 'renew'], 60);
             if ($code === 0 && trim($output) === '') {
                 $output = "[ OK ] Certificado comodín y CA raíz generados exitosamente.\n[ OK ] Apache recargado con nuevos certificados.";
@@ -605,12 +622,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     $respond(false, 'Nombre de paquete inválido.', 'diagnostics');
                     break;
                 }
+                session_write_close();
                 [$code, $output] = panel_srvctl(['system', 'upgrade', $pkg], 300);
                 if (isset($_SESSION['pending_updates']) && is_array($_SESSION['pending_updates'])) {
                     $_SESSION['pending_updates'] = array_values(array_filter($_SESSION['pending_updates'], static fn($p) => ($p['name'] ?? '') !== $pkg));
                 }
                 $count = 1;
             } else {
+                session_write_close();
                 [$code, $output] = panel_srvctl(['system', 'upgrade'], 300);
                 $count = count($_SESSION['pending_updates'] ?? []) ?: 1;
                 $_SESSION['pending_updates'] = [];
@@ -800,6 +819,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             break;
 
         case 'verify':
+            session_write_close();
             [$code, $output] = panel_srvctl(['verify'], 120);
             $_SESSION['verify_result'] = [
                 'output'    => $output,
