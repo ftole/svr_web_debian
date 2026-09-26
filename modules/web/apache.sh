@@ -78,6 +78,9 @@ EOF
         Options FollowSymLinks
         AllowOverride All
         Require all granted
+        <FilesMatch \.php$>
+            SetHandler "proxy:unix:/run/php/php${PHP_VER}-fpm-dashboard.sock|fcgi://localhost"
+        </FilesMatch>
     </Directory>
 
     # Compatibilidad de acceso a proyectos por ruta: https://${BASE_DOMAIN}/<proyecto>/
@@ -107,7 +110,7 @@ EOF
     ErrorDocument 404 /not_found.php
 
     <FilesMatch \.php$>
-        SetHandler "proxy:unix:/run/php/php${PHP_VER}-fpm.sock|fcgi://localhost"
+        SetHandler "proxy:unix:/run/php/php${PHP_VER}-fpm-dashboard.sock|fcgi://localhost"
     </FilesMatch>
     ErrorLog /var/log/apache2/dashboard_error.log
     CustomLog /var/log/apache2/dashboard_access.log combined
