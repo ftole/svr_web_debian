@@ -155,29 +155,29 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <div class="field">
                     <span>Memoria límite</span>
                     <select name="php_memory_limit" class="input">
-                        <option value="128M" <?= e($CONFIG['PHP_MEMORY_LIMIT'] === '128M' ? 'selected' : '') ?>>128M</option>
-                        <option value="256M" <?= e((($CONFIG['PHP_MEMORY_LIMIT'] ?? '256M') === '256M') ? 'selected' : '') ?>>256M (Recomendado)</option>
-                        <option value="512M" <?= e($CONFIG['PHP_MEMORY_LIMIT'] === '512M' ? 'selected' : '') ?>>512M</option>
-                        <option value="1024M" <?= e($CONFIG['PHP_MEMORY_LIMIT'] === '1024M' ? 'selected' : '') ?>>1024M</option>
+                        <option value="128M" <?= (($CONFIG['PHP_MEMORY_LIMIT'] ?? '') === '128M' ? 'selected' : '') ?>>128M</option>
+                        <option value="256M" <?= ((($CONFIG['PHP_MEMORY_LIMIT'] ?? '256M') === '256M') ? 'selected' : '') ?>>256M (Recomendado)</option>
+                        <option value="512M" <?= (($CONFIG['PHP_MEMORY_LIMIT'] ?? '') === '512M' ? 'selected' : '') ?>>512M</option>
+                        <option value="1024M" <?= (($CONFIG['PHP_MEMORY_LIMIT'] ?? '') === '1024M' ? 'selected' : '') ?>>1024M</option>
                     </select>
                 </div>
                 <div class="field">
                     <span>Tiempo máx. ejecución</span>
                     <select name="php_max_execution_time" class="input">
-                        <option value="30" <?= e($CONFIG['PHP_MAX_EXEC_TIME'] === '30' ? 'selected' : '') ?>>30 segundos</option>
-                        <option value="60" <?= e((($CONFIG['PHP_MAX_EXEC_TIME'] ?? '60') === '60') ? 'selected' : '') ?>>60 segundos</option>
-                        <option value="120" <?= e($CONFIG['PHP_MAX_EXEC_TIME'] === '120' ? 'selected' : '') ?>>120 segundos</option>
-                        <option value="300" <?= e($CONFIG['PHP_MAX_EXEC_TIME'] === '300' ? 'selected' : '') ?>>300 segundos</option>
+                        <option value="30" <?= (($CONFIG['PHP_MAX_EXEC_TIME'] ?? '') == 30 ? 'selected' : '') ?>>30 segundos</option>
+                        <option value="60" <?= ((($CONFIG['PHP_MAX_EXEC_TIME'] ?? 60) == 60) ? 'selected' : '') ?>>60 segundos</option>
+                        <option value="120" <?= (($CONFIG['PHP_MAX_EXEC_TIME'] ?? '') == 120 ? 'selected' : '') ?>>120 segundos</option>
+                        <option value="300" <?= (($CONFIG['PHP_MAX_EXEC_TIME'] ?? '') == 300 ? 'selected' : '') ?>>300 segundos</option>
                     </select>
                 </div>
                 <div class="field">
                     <span>Tamaño máx. subida</span>
                     <select name="php_upload_max_filesize" class="input">
-                        <option value="16M" <?= e($CONFIG['PHP_UPLOAD_MAX'] === '16M' ? 'selected' : '') ?>>16M</option>
-                        <option value="32M" <?= e($CONFIG['PHP_UPLOAD_MAX'] === '32M' ? 'selected' : '') ?>>32M</option>
-                        <option value="64M" <?= e((($CONFIG['PHP_UPLOAD_MAX'] ?? '64M') === '64M') ? 'selected' : '') ?>>64M (Estándar)</option>
-                        <option value="128M" <?= e($CONFIG['PHP_UPLOAD_MAX'] === '128M' ? 'selected' : '') ?>>128M</option>
-                        <option value="256M" <?= e($CONFIG['PHP_UPLOAD_MAX'] === '256M' ? 'selected' : '') ?>>256M</option>
+                        <option value="16M" <?= (($CONFIG['PHP_UPLOAD_MAX'] ?? '') === '16M' ? 'selected' : '') ?>>16M</option>
+                        <option value="32M" <?= (($CONFIG['PHP_UPLOAD_MAX'] ?? '') === '32M' ? 'selected' : '') ?>>32M</option>
+                        <option value="64M" <?= ((($CONFIG['PHP_UPLOAD_MAX'] ?? '64M') === '64M') ? 'selected' : '') ?>>64M (Estándar)</option>
+                        <option value="128M" <?= (($CONFIG['PHP_UPLOAD_MAX'] ?? '') === '128M' ? 'selected' : '') ?>>128M</option>
+                        <option value="256M" <?= (($CONFIG['PHP_UPLOAD_MAX'] ?? '') === '256M' ? 'selected' : '') ?>>256M</option>
                     </select>
                 </div>
             </div>
@@ -187,7 +187,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                     <span>Protocolo HTTP/2 en Apache</span>
                     <small>Habilita multiplexación y compresión de encabezados en Apache 2.4 MPM Event</small>
                 </div>
-                <input type="checkbox" name="http2_enabled" value="1" <?= e($CONFIG['HTTP2_ENABLED'] !== false ? 'checked' : '') ?>>
+                <input type="checkbox" name="http2_enabled" value="1" <?= (!isset($CONFIG['HTTP2_ENABLED']) || $CONFIG['HTTP2_ENABLED'] !== false) ? 'checked' : '' ?>>
             </div>
 
             <div class="switch">
@@ -195,7 +195,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                     <span>Mapeo Dinámico de Subdominios (mod_vhost_alias)</span>
                     <small>Resuelve automáticamente *.<?= e($CONFIG['BASE_DOMAIN']) ?> a /var/www/%1/public_html</small>
                 </div>
-                <input type="checkbox" name="mod_vhost_alias" value="1" <?= e($CONFIG['MOD_VHOST_ALIAS_ENABLED'] !== false ? 'checked' : '') ?>>
+                <input type="checkbox" name="mod_vhost_alias" value="1" <?= (!isset($CONFIG['MOD_VHOST_ALIAS_ENABLED']) || $CONFIG['MOD_VHOST_ALIAS_ENABLED'] !== false) ? 'checked' : '' ?>>
             </div>
 
             <button type="submit" class="btn btn-primary" style="margin-top: 8px;">Aplicar cambios PHP y Web</button>
@@ -229,10 +229,10 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <div class="field">
                     <span>Retención de snapshots</span>
                     <select name="backup_retention" class="input">
-                        <option value="3" <?= e($CONFIG['BACKUP_RETENTION_DAYS'] === 3 ? 'selected' : '') ?>>3 días</option>
-                        <option value="7" <?= e((($CONFIG['BACKUP_RETENTION_DAYS'] ?? 7) == 7) ? 'selected' : '') ?>>7 días (daily.0 a daily.6)</option>
-                        <option value="14" <?= e($CONFIG['BACKUP_RETENTION_DAYS'] === 14 ? 'selected' : '') ?>>14 días</option>
-                        <option value="30" <?= e($CONFIG['BACKUP_RETENTION_DAYS'] === 30 ? 'selected' : '') ?>>30 días</option>
+                        <option value="3" <?= (($CONFIG['BACKUP_RETENTION_DAYS'] ?? 7) == 3 ? 'selected' : '') ?>>3 días</option>
+                        <option value="7" <?= (($CONFIG['BACKUP_RETENTION_DAYS'] ?? 7) == 7 ? 'selected' : '') ?>>7 días (daily.0 a daily.6)</option>
+                        <option value="14" <?= (($CONFIG['BACKUP_RETENTION_DAYS'] ?? 7) == 14 ? 'selected' : '') ?>>14 días</option>
+                        <option value="30" <?= (($CONFIG['BACKUP_RETENTION_DAYS'] ?? 7) == 30 ? 'selected' : '') ?>>30 días</option>
                     </select>
                 </div>
                 <div class="field">
