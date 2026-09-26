@@ -619,6 +619,256 @@ api_database() {
     printf ',"status":{"threads":%s,"running":%s,"qps":%s}}\n' "${q_threads:-0}" "${q_running:-0}" "${qps:-0}"
 }
 
+cmd_service_restart() {
+    validate_root
+    load_config
+    local unit="$1"
+    [ -n "$unit" ] || die "Debes especificar el servicio a reiniciar. Ej: srvctl service restart apache2"
+
+    local allowed="^(apache2|php[0-9.]*-fpm|mariadb|redis-server|smbd|ufw|fail2ban)$"
+    if [[ ! "$unit" =~ $allowed ]]; then
+        die "Servicio '${unit}' no permitido para reinicio. Permitidos: apache2, php8.4-fpm, mariadb, redis-server, smbd, ufw, fail2ban."
+    fi
+
+    log "[Servicio] Reiniciando ${unit}..."
+    systemctl restart "$unit"
+    log "[Servicio] Servicio ${unit} reiniciado correctamente."
+}
+
+cmd_service_reload() {
+    validate_root
+    load_config
+    local unit="$1"
+    [ -n "$unit" ] || die "Debes especificar el servicio a recargar. Ej: srvctl service reload apache2"
+
+    local allowed="^(apache2|php[0-9.]*-fpm)$"
+    if [[ ! "$unit" =~ $allowed ]]; then
+        die "Servicio '${unit}' no permitido para recarga. Permitidos: apache2, php8.4-fpm."
+    fi
+
+    log "[Servicio] Recargando configuracion de ${unit}..."
+    systemctl reload "$unit"
+    log "[Servicio] Servicio ${unit} recargado correctamente."
+}
+
+cmd_security_scan() {
+    validate_root
+    load_config
+    echo "=============================================================================="
+    echo "           AUDITORIA DE SEGURIDAD Y HARDENING - $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "=============================================================================="
+
+    local ISSUES=0
+    local WARNS=0
+
+    # 1. Cortafuegos UFW
+    echo "--- 1. Estado del Cortafuegos (UFW) ---"
+    if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -qi 'Status: active'; then
+        echo " [ OK ]   Cortafuegos UFW: Activo"
+        local rule_count
+        rule_count="$(ufw status 2>/dev/null | grep -cE 'ALLOW|DENY|REJECT|LIMIT' || echo 0)"
+        echo " [ INFO ] Reglas UFW registradas: ${rule_count}"
+    else
+        echo " [FALLO]  Cortafuegos UFW: Inactivo o no configurado"
+        ISSUES=$((ISSUES + 1))
+    fi
+
+    # 2. Prevencion de Intrusiones (Fail2ban)
+    echo ""
+    echo "--- 2. Prevencion de Intrusiones (Fail2ban) ---"
+    if systemctl is-active --quiet fail2ban 2>/dev/null; then
+        echo " [ OK ]   Servicio fail2ban: Activo"
+        local jail_status
+        jail_status="$(fail2ban-client status sshd 2>/dev/null || true)"
+        if [ -n "$jail_status" ]; then
+            local banned_cnt
+            banned_cnt="$(echo "$jail_status" | sed -n 's/.*Currently banned:[[:space:]]*//p' || echo 0)"
+            echo " [ INFO ] Jaula sshd: Operativa (${banned_cnt:-0} IPs actualmente baneadas)"
+        else
+            echo " [AVISO]  Jaula sshd en fail2ban no detectada o inactiva"
+            WARNS=$((WARNS + 1))
+        fi
+    else
+        echo " [FALLO]  Servicio fail2ban: Inactivo"
+        ISSUES=$((ISSUES + 1))
+    fi
+
+    # 3. Bastionado OpenSSH
+    echo ""
+    echo "--- 3. Bastionado OpenSSH ---"
+    local ssh_root ssh_tries
+    ssh_root="$(grep -rhiE '^[[:space:]]*PermitRootLogin' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null | tail -1 | awk '{print $2}' || true)"
+    ssh_tries="$(grep -rhiE '^[[:space:]]*MaxAuthTries' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/ 2>/dev/null | tail -1 | awk '{print $2}' || true)"
+
+    if [ "$ssh_root" = "no" ] || [ "$ssh_root" = "prohibit-password" ]; then
+        echo " [ OK ]   SSH PermitRootLogin: ${ssh_root:-no}"
+    else
+        echo " [AVISO]  SSH PermitRootLogin permisivo: ${ssh_root:-yes}"
+        WARNS=$((WARNS + 1))
+    fi
+
+    if [ -n "$ssh_tries" ] && [ "$ssh_tries" -le 5 ]; then
+        echo " [ OK ]   SSH MaxAuthTries restringido: ${ssh_tries}"
+    else
+        echo " [AVISO]  SSH MaxAuthTries alto o no definido: ${ssh_tries:-default (6)}"
+        WARNS=$((WARNS + 1))
+    fi
+
+    # 4. Puertos a la escucha
+    echo ""
+    echo "--- 4. Puertos y Servicios en Escucha ---"
+    local listening_ports
+    if command -v ss >/dev/null 2>&1; then
+        listening_ports="$(ss -tulpn 2>/dev/null | awk 'NR>1 {printf "  %-7s %-22s %s\n", $1, $5, $7}' | head -n 20 || true)"
+    else
+        listening_ports="$(netstat -tulpn 2>/dev/null | awk 'NR>2 {printf "  %-7s %-22s %s\n", $1, $4, $7}' | head -n 20 || true)"
+    fi
+    echo "${listening_ports:-  Ningun socket detectado}"
+
+    # 5. Permisos de Archivos Criticos
+    echo ""
+    echo "--- 5. Permisos de Archivos y Credenciales ---"
+    if [ -f /etc/srvctl.conf ]; then
+        local perm_conf
+        perm_conf="$(stat -c %a /etc/srvctl.conf 2>/dev/null || echo '000')"
+        if [ "$perm_conf" = "600" ]; then
+            echo " [ OK ]   /etc/srvctl.conf permisos: ${perm_conf} (modo protegido root:root)"
+        else
+            echo " [AVISO]  /etc/srvctl.conf permisos inseguros: ${perm_conf} (debe ser 600)"
+            WARNS=$((WARNS + 1))
+        fi
+    fi
+
+    if [ -d /etc/ssl/localcerts ]; then
+        local open_keys
+        open_keys="$(find /etc/ssl/localcerts -type f -name '*.key' ! -perm 400 2>/dev/null | wc -l)"
+        if [ "$open_keys" -eq 0 ]; then
+            echo " [ OK ]   Claves privadas SSL (/etc/ssl/localcerts/*.key) protegidas (0400)"
+        else
+            echo " [AVISO]  Existen ${open_keys} clave(s) privada(s) SSL sin permisos 0400"
+            WARNS=$((WARNS + 1))
+        fi
+    fi
+
+    # 6. Auditoria de Comandos Sudo
+    echo ""
+    echo "--- 6. Registro de Auditoria Sudo (/var/log/sudo.log) ---"
+    if [ -f /var/log/sudo.log ]; then
+        local sudo_entries
+        sudo_entries="$(wc -l < /var/log/sudo.log 2>/dev/null || echo 0)"
+        echo " [ OK ]   Archivo /var/log/sudo.log activo (${sudo_entries} eventos registrados)"
+        echo " [ INFO ] Ultimos 5 eventos administrativos:"
+        tail -n 5 /var/log/sudo.log 2>/dev/null | sed 's/^/         /' || true
+    else
+        echo " [AVISO]  /var/log/sudo.log no encontrado"
+        WARNS=$((WARNS + 1))
+    fi
+
+    echo ""
+    echo "=============================================================================="
+    echo "Resumen de auditoria: ${ISSUES} fallos criticos, ${WARNS} advertencias."
+    echo "=============================================================================="
+
+    [ "$ISSUES" -eq 0 ]
+}
+
+cmd_system_check_updates() {
+    validate_root
+    log "[Sistema] Consultando repositorios Debian 13 para actualizaciones..."
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update -y >/dev/null
+
+    echo "=============================================================================="
+    echo "                 PAQUETES ACTUALIZABLES (DEBIAN 13)                           "
+    echo "=============================================================================="
+    local up_list
+    up_list="$(apt list --upgradable 2>/dev/null | grep -v 'Listing...' || true)"
+    if [ -n "$up_list" ]; then
+        echo "$up_list"
+        local up_count
+        up_count="$(echo "$up_list" | wc -l)"
+        echo "=============================================================================="
+        echo "Total de paquetes actualizables: ${up_count}"
+    else
+        echo "El sistema esta completamente actualizado. No hay paquetes pendientes."
+        echo "=============================================================================="
+    fi
+}
+
+cmd_system_upgrade() {
+    validate_root
+    load_config
+    local pkg="${1:-}"
+    export DEBIAN_FRONTEND=noninteractive
+
+    if [ -n "$pkg" ]; then
+        if [[ ! "$pkg" =~ ^[a-zA-Z0-9.+_-]+$ ]]; then
+            die "Nombre de paquete invalido: ${pkg}"
+        fi
+        log "[Sistema] Actualizando paquete especifico: ${pkg}..."
+        apt-get install -y --only-upgrade "$pkg"
+        log "[Sistema] Paquete '${pkg}' actualizado correctamente."
+    else
+        log "[Sistema] Ejecutando actualizacion completa del sistema..."
+        apt-get update -y >/dev/null
+        apt-get dist-upgrade -y
+        log "[Sistema] Actualizacion del sistema completada exitosamente."
+    fi
+}
+
+cmd_system_change_password() {
+    validate_root
+    load_config
+    local new_pass="$1"
+    [ -n "$new_pass" ] || die "Debes especificar la nueva contrasena. Ej: srvctl system change-password MiClaveSegura123"
+
+    if [ "${#new_pass}" -lt 6 ]; then
+        die "La contrasena debe tener al menos 6 caracteres."
+    fi
+
+    log "[Sistema] Actualizando contrasena administrativa..."
+
+    # 1. Actualizar usuario del sistema operativo
+    if id "${ADMIN_USER}" >/dev/null 2>&1; then
+        echo "${ADMIN_USER}:${new_pass}" | chpasswd
+        log "         Contrasena de sistema actualizada para '${ADMIN_USER}'."
+    fi
+
+    # 2. Actualizar MariaDB
+    mariadb -e "ALTER USER IF EXISTS '${ADMIN_USER}'@'localhost' IDENTIFIED BY '${new_pass}'; ALTER USER IF EXISTS '${ADMIN_USER}'@'127.0.0.1' IDENTIFIED BY '${new_pass}'; FLUSH PRIVILEGES;" 2>/dev/null || true
+    log "         Contrasena de MariaDB actualizada para '${ADMIN_USER}'."
+
+    # 3. Actualizar Samba
+    if command -v smbpasswd >/dev/null 2>&1; then
+        (echo "${new_pass}"; echo "${new_pass}") | smbpasswd -s "${ADMIN_USER}" 2>/dev/null || true
+        log "         Contrasena de Samba SMB actualizada para '${ADMIN_USER}'."
+    fi
+
+    # 4. Actualizar /etc/srvctl.conf
+    ADMIN_PASS="${new_pass}"
+    save_config
+    log "         /etc/srvctl.conf actualizado con nueva contrasena maestra."
+
+    # 5. Actualizar hash en /etc/srvctl-panel.conf
+    local panel_conf="/etc/srvctl-panel.conf"
+    if [ -f "$panel_conf" ]; then
+        local new_hash
+        new_hash="$(SRVCTL_PANEL_PW="${new_pass}" php -r 'echo password_hash((string)getenv("SRVCTL_PANEL_PW"), PASSWORD_DEFAULT);' 2>/dev/null || true)"
+        if [ -n "$new_hash" ]; then
+            if grep -q '^PANEL_PASS_HASH=' "$panel_conf"; then
+                sed -i "s|^PANEL_PASS_HASH=.*|PANEL_PASS_HASH='${new_hash}'|" "$panel_conf"
+            else
+                echo "PANEL_PASS_HASH='${new_hash}'" >> "$panel_conf"
+            fi
+            chmod 640 "$panel_conf" 2>/dev/null || true
+            chown root:www-data "$panel_conf" 2>/dev/null || true
+            log "         /etc/srvctl-panel.conf actualizado con nuevo hash de sesion."
+        fi
+    fi
+
+    log "[Sistema] Contrasena administrativa actualizada en todos los servicios."
+}
+
 cmd_api() {
     case "${1:-}" in
         security) api_security ;;
@@ -630,7 +880,7 @@ cmd_api() {
 
 show_tui() {
     if ! command -v whiptail >/dev/null 2>&1; then
-        echo "Uso: srvctl [deploy|status|verify|project|backup|reset]"
+        echo "Uso: srvctl [deploy|status|verify|service|firewall|security|ssl|backup|db|cache|system|project|reset]"
         exit 1
     fi
 
@@ -687,6 +937,68 @@ case "$subcmd" in
     deploy)  cmd_deploy ;;
     status)  cmd_status ;;
     verify)  cmd_verify ;;
+    service)
+        case "${2:-}" in
+            restart) cmd_service_restart "${3:-}" ;;
+            reload)  cmd_service_reload "${3:-}" ;;
+            *) die "Uso: srvctl service [restart <unit>|reload <unit>]" ;;
+        esac
+        ;;
+    firewall)
+        case "${2:-}" in
+            toggle) bash "${SRVCTL_ROOT}/modules/security/firewall.sh" toggle "${3:-}" ;;
+            allow)  bash "${SRVCTL_ROOT}/modules/security/firewall.sh" allow "${3:-}" "${4:-}" ;;
+            delete) bash "${SRVCTL_ROOT}/modules/security/firewall.sh" delete "${3:-}" ;;
+            *) die "Uso: srvctl firewall [toggle [on|off]|allow <puerto>[/<proto>] [<comentario>]|delete <num|puerto>]" ;;
+        esac
+        ;;
+    security)
+        case "${2:-}" in
+            ban)   bash "${SRVCTL_ROOT}/modules/security/firewall.sh" ban "${3:-}" ;;
+            unban) bash "${SRVCTL_ROOT}/modules/security/firewall.sh" unban "${3:-}" ;;
+            scan)  cmd_security_scan ;;
+            *) die "Uso: srvctl security [ban <ip>|unban <ip>|scan]" ;;
+        esac
+        ;;
+    ssl)
+        case "${2:-}" in
+            renew) bash "${SRVCTL_ROOT}/modules/web/ssl.sh" renew ;;
+            *) die "Uso: srvctl ssl [renew]" ;;
+        esac
+        ;;
+    backup)
+        case "${2:-}" in
+            run)              bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" setup ;;
+            list)             bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" list ;;
+            rollback)         bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" rollback "${3:-daily.0}" ;;
+            rollback-project) bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" rollback-project "${3:-}" "${4:-daily.0}" ;;
+            restore-db)       bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" restore-db "${3:-}" ;;
+            verify)           bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" verify ;;
+            *) die "Uso: srvctl backup [run|list|rollback <snapshot>|rollback-project <proyecto> [snap]|restore-db <dump>|verify]" ;;
+        esac
+        ;;
+    db)
+        case "${2:-}" in
+            create)   bash "${SRVCTL_ROOT}/modules/stack/mariadb.sh" create "${3:-}" "${4:-}" "${5:-}" ;;
+            delete)   bash "${SRVCTL_ROOT}/modules/stack/mariadb.sh" delete "${3:-}" ;;
+            optimize) bash "${SRVCTL_ROOT}/modules/stack/mariadb.sh" optimize ;;
+            *) die "Uso: srvctl db [create <name> <user> [<pass>]|delete <name>|optimize]" ;;
+        esac
+        ;;
+    cache)
+        case "${2:-}" in
+            flush-redis) bash "${SRVCTL_ROOT}/modules/stack/redis.sh" flush ;;
+            *) die "Uso: srvctl cache [flush-redis]" ;;
+        esac
+        ;;
+    system)
+        case "${2:-}" in
+            check-updates)   cmd_system_check_updates ;;
+            upgrade)         cmd_system_upgrade "${3:-}" ;;
+            change-password) cmd_system_change_password "${3:-}" ;;
+            *) die "Uso: srvctl system [check-updates|upgrade [<paquete>]|change-password <clave>]" ;;
+        esac
+        ;;
     project)
         case "${2:-}" in
             create) cmd_project_create "${3:-}" ;;
@@ -696,16 +1008,8 @@ case "$subcmd" in
             *) die "Uso: srvctl project [create <nombre>|db <nombre>|delete <nombre>|list]" ;;
         esac
         ;;
-    backup)
-        case "${2:-}" in
-            run)      bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" setup ;;
-            list)     bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" list ;;
-            rollback) bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" rollback "${3:-daily.0}" ;;
-            *) die "Uso: srvctl backup [run|list|rollback <snapshot>]" ;;
-        esac
-        ;;
     api)     cmd_api "${2:-}" ;;
     reset)   cmd_reset ;;
     "")      show_tui ;;
-    *)       die "Comando desconocido: $subcmd. Usa: srvctl [deploy|status|verify|project|backup|reset]" ;;
+    *)       die "Comando desconocido: $subcmd. Usa: srvctl [deploy|status|verify|service|firewall|security|ssl|backup|db|cache|system|project|reset]" ;;
 esac
