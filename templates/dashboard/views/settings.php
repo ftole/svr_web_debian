@@ -1,5 +1,6 @@
 <?php
-// Los datos de configuración ya están en $CONFIG (cargados globalmente)
+$overview = panel_overview($CONFIG);
+$panelVersion = $CONFIG['PANEL_VERSION'] ?? '1.0.0';
 $spec = [
     'title' => 'Módulo 10: Configuración Centralizada /etc/srvctl.conf',
     'endpoints' => [
@@ -53,19 +54,19 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
 
             <div class="field">
                 <span>Nombre del Equipo / Hostname (SERVER_HOSTNAME)</span>
-                <input type="text" name="server_hostname" class="input" required value="<?= e($CONFIG[\'SERVER_HOSTNAME\'] ?? (typeof overview !== 'undefined' ? $overview[\'hostname\'] : 'debian13-server')) ?>" placeholder="debian13-server" pattern="^[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]$">
+                <input type="text" name="server_hostname" class="input" required value="<?= e($CONFIG['SERVER_HOSTNAME'] ?? ($overview['hostname'] ?? 'debian13-server')) ?>" placeholder="debian13-server" pattern="^[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]$">
                 <small class="muted">Nombre identificador del equipo mostrado en la cabecera del panel.</small>
             </div>
 
             <div class="field">
                 <span>Dirección IPv4 del Servidor (SERVER_IP)</span>
-                <input type="text" name="server_ip" class="input" required value="<?= e($CONFIG[\'SERVER_IP\']) ?>" placeholder="10.1.0.4" pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$">
+                <input type="text" name="server_ip" class="input" required value="<?= e($CONFIG['SERVER_IP']) ?>" placeholder="10.1.0.4" pattern="^([0-9]{1,3}\.){3}[0-9]{1,3}$">
                 <small class="muted">Dirección de enlace en la interfaz de red local o pública.</small>
             </div>
 
             <div class="field">
                 <span>Dominio Base (BASE_DOMAIN)</span>
-                <input type="text" name="base_domain" class="input" required value="<?= e($CONFIG[\'BASE_DOMAIN\']) ?>" placeholder="empresa.local">
+                <input type="text" name="base_domain" class="input" required value="<?= e($CONFIG['BASE_DOMAIN']) ?>" placeholder="empresa.local">
                 <small class="muted">Dominio raíz asignado al servidor (debe resolver hacia la IP configurada).</small>
             </div>
 
@@ -74,23 +75,23 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <div class="form-row-3">
                     <div>
                         <small class="muted" style="display:block; margin-bottom: 4px;">Producción</small>
-                        <input type="text" name="prod_sub" class="input" required value="<?= e($CONFIG[\'PROD_SUB\']) ?>" placeholder="prod">
+                        <input type="text" name="prod_sub" class="input" required value="<?= e($CONFIG['PROD_SUB']) ?>" placeholder="prod">
                     </div>
                     <div>
                         <small class="muted" style="display:block; margin-bottom: 4px;">Staging</small>
-                        <input type="text" name="stg_sub" class="input" required value="<?= e($CONFIG[\'STG_SUB\']) ?>" placeholder="stg">
+                        <input type="text" name="stg_sub" class="input" required value="<?= e($CONFIG['STG_SUB']) ?>" placeholder="stg">
                     </div>
                     <div>
                         <small class="muted" style="display:block; margin-bottom: 4px;">phpMyAdmin</small>
-                        <input type="text" name="db_sub" class="input" required value="<?= e($CONFIG[\'DB_SUB\']) ?>" placeholder="webdev">
+                        <input type="text" name="db_sub" class="input" required value="<?= e($CONFIG['DB_SUB']) ?>" placeholder="webdev">
                     </div>
                 </div>
             </div>
 
             <div class="kv kv-inline" style="margin-top: 12px; margin-bottom: 16px;">
-                <div><dt>URL Producción</dt><dd><code>https://<?= e($CONFIG[\'PROD_FQDN\']) ?></code></dd></div>
-                <div><dt>URL Staging</dt><dd><code>https://<?= e($CONFIG[\'STG_FQDN\']) ?></code></dd></div>
-                <div><dt>URL phpMyAdmin</dt><dd><code>https://<?= e($CONFIG[\'DB_FQDN\']) ?></code></dd></div>
+                <div><dt>URL Producción</dt><dd><code>https://<?= e($CONFIG['PROD_FQDN']) ?></code></dd></div>
+                <div><dt>URL Staging</dt><dd><code>https://<?= e($CONFIG['STG_FQDN']) ?></code></dd></div>
+                <div><dt>URL phpMyAdmin</dt><dd><code>https://<?= e($CONFIG['DB_FQDN']) ?></code></dd></div>
             </div>
 
             <button type="submit" class="btn btn-primary">Guardar parámetros de red</button>
@@ -109,7 +110,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
 
             <div class="field">
                 <span>Usuario Administrador (ADMIN_USER)</span>
-                <input type="text" name="admin_user" class="input" required value="<?= e($CONFIG[\'ADMIN_USER\']) ?>">
+                <input type="text" name="admin_user" class="input" required value="<?= e($CONFIG['ADMIN_USER']) ?>">
             </div>
 
             <div class="field">
@@ -154,29 +155,29 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <div class="field">
                     <span>Memoria límite</span>
                     <select name="php_memory_limit" class="input">
-                        <option value="128M" <?= e($CONFIG[\'PHP_MEMORY_LIMIT\'] === '128M' ? 'selected' : '') ?>>128M</option>
-                        <option value="256M" <?= e(($CONFIG[\'PHP_MEMORY_LIMIT\'] === '256M' ?? !$CONFIG[\'PHP_MEMORY_LIMIT\']) ? 'selected' : '') ?>>256M (Recomendado)</option>
-                        <option value="512M" <?= e($CONFIG[\'PHP_MEMORY_LIMIT\'] === '512M' ? 'selected' : '') ?>>512M</option>
-                        <option value="1024M" <?= e($CONFIG[\'PHP_MEMORY_LIMIT\'] === '1024M' ? 'selected' : '') ?>>1024M</option>
+                        <option value="128M" <?= e($CONFIG['PHP_MEMORY_LIMIT'] === '128M' ? 'selected' : '') ?>>128M</option>
+                        <option value="256M" <?= e((($CONFIG['PHP_MEMORY_LIMIT'] ?? '256M') === '256M') ? 'selected' : '') ?>>256M (Recomendado)</option>
+                        <option value="512M" <?= e($CONFIG['PHP_MEMORY_LIMIT'] === '512M' ? 'selected' : '') ?>>512M</option>
+                        <option value="1024M" <?= e($CONFIG['PHP_MEMORY_LIMIT'] === '1024M' ? 'selected' : '') ?>>1024M</option>
                     </select>
                 </div>
                 <div class="field">
                     <span>Tiempo máx. ejecución</span>
                     <select name="php_max_execution_time" class="input">
-                        <option value="30" <?= e($CONFIG[\'PHP_MAX_EXEC_TIME\'] === '30' ? 'selected' : '') ?>>30 segundos</option>
-                        <option value="60" <?= e(($CONFIG[\'PHP_MAX_EXEC_TIME\'] === '60' ?? !$CONFIG[\'PHP_MAX_EXEC_TIME\']) ? 'selected' : '') ?>>60 segundos</option>
-                        <option value="120" <?= e($CONFIG[\'PHP_MAX_EXEC_TIME\'] === '120' ? 'selected' : '') ?>>120 segundos</option>
-                        <option value="300" <?= e($CONFIG[\'PHP_MAX_EXEC_TIME\'] === '300' ? 'selected' : '') ?>>300 segundos</option>
+                        <option value="30" <?= e($CONFIG['PHP_MAX_EXEC_TIME'] === '30' ? 'selected' : '') ?>>30 segundos</option>
+                        <option value="60" <?= e((($CONFIG['PHP_MAX_EXEC_TIME'] ?? '60') === '60') ? 'selected' : '') ?>>60 segundos</option>
+                        <option value="120" <?= e($CONFIG['PHP_MAX_EXEC_TIME'] === '120' ? 'selected' : '') ?>>120 segundos</option>
+                        <option value="300" <?= e($CONFIG['PHP_MAX_EXEC_TIME'] === '300' ? 'selected' : '') ?>>300 segundos</option>
                     </select>
                 </div>
                 <div class="field">
                     <span>Tamaño máx. subida</span>
                     <select name="php_upload_max_filesize" class="input">
-                        <option value="16M" <?= e($CONFIG[\'PHP_UPLOAD_MAX\'] === '16M' ? 'selected' : '') ?>>16M</option>
-                        <option value="32M" <?= e($CONFIG[\'PHP_UPLOAD_MAX\'] === '32M' ? 'selected' : '') ?>>32M</option>
-                        <option value="64M" <?= e(($CONFIG[\'PHP_UPLOAD_MAX\'] === '64M' ?? !$CONFIG[\'PHP_UPLOAD_MAX\']) ? 'selected' : '') ?>>64M (Estándar)</option>
-                        <option value="128M" <?= e($CONFIG[\'PHP_UPLOAD_MAX\'] === '128M' ? 'selected' : '') ?>>128M</option>
-                        <option value="256M" <?= e($CONFIG[\'PHP_UPLOAD_MAX\'] === '256M' ? 'selected' : '') ?>>256M</option>
+                        <option value="16M" <?= e($CONFIG['PHP_UPLOAD_MAX'] === '16M' ? 'selected' : '') ?>>16M</option>
+                        <option value="32M" <?= e($CONFIG['PHP_UPLOAD_MAX'] === '32M' ? 'selected' : '') ?>>32M</option>
+                        <option value="64M" <?= e((($CONFIG['PHP_UPLOAD_MAX'] ?? '64M') === '64M') ? 'selected' : '') ?>>64M (Estándar)</option>
+                        <option value="128M" <?= e($CONFIG['PHP_UPLOAD_MAX'] === '128M' ? 'selected' : '') ?>>128M</option>
+                        <option value="256M" <?= e($CONFIG['PHP_UPLOAD_MAX'] === '256M' ? 'selected' : '') ?>>256M</option>
                     </select>
                 </div>
             </div>
@@ -186,15 +187,15 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                     <span>Protocolo HTTP/2 en Apache</span>
                     <small>Habilita multiplexación y compresión de encabezados en Apache 2.4 MPM Event</small>
                 </div>
-                <input type="checkbox" name="http2_enabled" value="1" <?= e($CONFIG[\'HTTP2_ENABLED\'] !== false ? 'checked' : '') ?>>
+                <input type="checkbox" name="http2_enabled" value="1" <?= e($CONFIG['HTTP2_ENABLED'] !== false ? 'checked' : '') ?>>
             </div>
 
             <div class="switch">
                 <div class="switch-label">
                     <span>Mapeo Dinámico de Subdominios (mod_vhost_alias)</span>
-                    <small>Resuelve automáticamente *.<?= e($CONFIG[\'BASE_DOMAIN\']) ?> a /var/www/%1/public_html</small>
+                    <small>Resuelve automáticamente *.<?= e($CONFIG['BASE_DOMAIN']) ?> a /var/www/%1/public_html</small>
                 </div>
-                <input type="checkbox" name="mod_vhost_alias" value="1" <?= e($CONFIG[\'MOD_VHOST_ALIAS_ENABLED\'] !== false ? 'checked' : '') ?>>
+                <input type="checkbox" name="mod_vhost_alias" value="1" <?= e($CONFIG['MOD_VHOST_ALIAS_ENABLED'] !== false ? 'checked' : '') ?>>
             </div>
 
             <button type="submit" class="btn btn-primary" style="margin-top: 8px;">Aplicar cambios PHP y Web</button>
@@ -214,12 +215,12 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
             <div class="form-row-2">
                 <div class="field">
                     <span>Nombre del recurso Samba</span>
-                    <input type="text" name="samba_share_name" class="input" required value="<?= e($CONFIG[\'SAMBA_SHARE_NAME\'] ?? 'proyectos') ?>">
-                    <small class="muted">Acceso: <code>\\<?= e($CONFIG[\'SERVER_IP\']) ?>\<?= e($CONFIG[\'SAMBA_SHARE_NAME\'] ?? 'proyectos') ?></code></small>
+                    <input type="text" name="samba_share_name" class="input" required value="<?= e($CONFIG['SAMBA_SHARE_NAME'] ?? 'proyectos') ?>">
+                    <small class="muted">Acceso: <code>\\<?= e($CONFIG['SERVER_IP']) ?>\<?= e($CONFIG['SAMBA_SHARE_NAME'] ?? 'proyectos') ?></code></small>
                 </div>
                 <div class="field">
                     <span>Ruta local del recurso</span>
-                    <input type="text" name="samba_share_path" class="input" required value="<?= e($CONFIG[\'SAMBA_SHARE_PATH\'] ?? '/var/www') ?>">
+                    <input type="text" name="samba_share_path" class="input" required value="<?= e($CONFIG['SAMBA_SHARE_PATH'] ?? '/var/www') ?>">
                     <small class="muted">Permisos SGID 2775 (www-data)</small>
                 </div>
             </div>
@@ -228,15 +229,15 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <div class="field">
                     <span>Retención de snapshots</span>
                     <select name="backup_retention" class="input">
-                        <option value="3" <?= e($CONFIG[\'BACKUP_RETENTION_DAYS\'] === 3 ? 'selected' : '') ?>>3 días</option>
-                        <option value="7" <?= e(($CONFIG[\'BACKUP_RETENTION_DAYS\'] === 7 ?? !$CONFIG[\'BACKUP_RETENTION_DAYS\']) ? 'selected' : '') ?>>7 días (daily.0 a daily.6)</option>
-                        <option value="14" <?= e($CONFIG[\'BACKUP_RETENTION_DAYS\'] === 14 ? 'selected' : '') ?>>14 días</option>
-                        <option value="30" <?= e($CONFIG[\'BACKUP_RETENTION_DAYS\'] === 30 ? 'selected' : '') ?>>30 días</option>
+                        <option value="3" <?= e($CONFIG['BACKUP_RETENTION_DAYS'] === 3 ? 'selected' : '') ?>>3 días</option>
+                        <option value="7" <?= e((($CONFIG['BACKUP_RETENTION_DAYS'] ?? 7) == 7) ? 'selected' : '') ?>>7 días (daily.0 a daily.6)</option>
+                        <option value="14" <?= e($CONFIG['BACKUP_RETENTION_DAYS'] === 14 ? 'selected' : '') ?>>14 días</option>
+                        <option value="30" <?= e($CONFIG['BACKUP_RETENTION_DAYS'] === 30 ? 'selected' : '') ?>>30 días</option>
                     </select>
                 </div>
                 <div class="field">
                     <span>Hora programada de respaldo</span>
-                    <input type="time" name="backup_time" class="input" value="<?= e($CONFIG[\'BACKUP_CRON_TIME\'] ?? '02:00') ?>">
+                    <input type="time" name="backup_time" class="input" value="<?= e($CONFIG['BACKUP_CRON_TIME'] ?? '02:00') ?>">
                     <small class="muted">Ejecución diaria en cron del sistema</small>
                 </div>
             </div>
@@ -303,10 +304,10 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
         </div>
         <dl class="kv">
             <div><dt>Versión del Panel</dt><dd>v<?= e($panelVersion) ?></dd></div>
-            <div><dt>Hostname</dt><dd><?= e($overview[\'hostname\']) ?></dd></div>
-            <div><dt>Sistema Operativo</dt><dd><?= e($overview[\'os\']) ?></dd></div>
-            <div><dt>Kernel</dt><dd><?= e($overview[\'kernel\']) ?></dd></div>
-            <div><dt>Intérprete PHP</dt><dd><?= e($overview[\'php\']) ?></dd></div>
+            <div><dt>Hostname</dt><dd><?= e($overview['hostname']) ?></dd></div>
+            <div><dt>Sistema Operativo</dt><dd><?= e($overview['os']) ?></dd></div>
+            <div><dt>Kernel</dt><dd><?= e($overview['kernel']) ?></dd></div>
+            <div><dt>Intérprete PHP</dt><dd><?= e($overview['php']) ?></dd></div>
             <div><dt>Servidor Web</dt><dd>Apache 2.4.62 (MPM Event)</dd></div>
             <div><dt>Base de Datos</dt><dd>MariaDB 11.8 (InnoDB)</dd></div>
             <div><dt>Servicio Caché</dt><dd>Redis Server 7.2</dd></div>
