@@ -54,11 +54,124 @@ disable_firewall() {
     log "            Cortafuegos y Fail2ban deshabilitados."
 }
 
+toggle_firewall() {
+    validate_root
+    local target_state="${1:-}"
+    if [ -z "$target_state" ]; then
+        if ufw status 2>/dev/null | grep -qi 'Status: active'; then
+            target_state="off"
+        else
+            target_state="on"
+        fi
+    fi
+
+    case "$target_state" in
+        on|enable)
+            log "[Seguridad] Activando cortafuegos UFW..."
+            ufw --force enable
+            systemctl enable --now ufw >/dev/null 2>&1 || true
+            log "            Cortafuegos UFW activado exitosamente."
+            ;;
+        off|disable)
+            log "[Seguridad] Desactivando cortafuegos UFW..."
+            ufw --force disable
+            log "            Cortafuegos UFW desactivado exitosamente."
+            ;;
+        *)
+            die "Estado desconocido para toggle: ${target_state}. Usa 'on' u 'off'."
+            ;;
+    esac
+}
+
+allow_rule() {
+    validate_root
+    local rule_spec="$1"
+    shift || true
+    local comment="$*"
+
+    [ -n "$rule_spec" ] || die "Debes especificar el puerto o regla. Ej: srvctl firewall allow 8080/tcp 'API Node'"
+
+    local port proto
+    if [[ "$rule_spec" =~ ^([0-9]+)/([a-z]+)$ ]]; then
+        port="${BASH_REMATCH[1]}"
+        proto="${BASH_REMATCH[2]}"
+    elif [[ "$rule_spec" =~ ^[0-9]+$ ]]; then
+        port="$rule_spec"
+        proto=""
+    else
+        die "Formato de puerto invalido: ${rule_spec}. Ejemplos: 8080 o 8080/tcp."
+    fi
+
+    if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        die "Numero de puerto fuera de rango (1-65535): ${port}"
+    fi
+
+    if [ -n "$proto" ] && [[ ! "$proto" =~ ^(tcp|udp)$ ]]; then
+        die "Protocolo invalido: ${proto}. Usa 'tcp' o 'udp'."
+    fi
+
+    local target="${port}${proto:+/$proto}"
+    log "[Seguridad] Permitiendo puerto ${target} en UFW..."
+    if [ -n "$comment" ]; then
+        local clean_comment="${comment//\'/}"
+        ufw allow "${target}" comment "${clean_comment}"
+    else
+        ufw allow "${target}"
+    fi
+    log "            Regla permitida en UFW: ${target}"
+}
+
+delete_rule() {
+    validate_root
+    local target="$1"
+    [ -n "$target" ] || die "Debes especificar el numero de regla o puerto a eliminar. Ej: srvctl firewall delete 3 o srvctl firewall delete 8080/tcp"
+
+    if [[ "$target" =~ ^[0-9]+$ ]] && [ "$target" -lt 1000 ]; then
+        log "[Seguridad] Eliminando regla numero ${target} de UFW..."
+        echo "y" | ufw delete "$target" || ufw --force delete "$target"
+    elif [[ "$target" =~ ^[0-9]+(/[a-z]+)?$ ]]; then
+        log "[Seguridad] Eliminando permiso para ${target} en UFW..."
+        ufw --force delete allow "$target"
+    else
+        die "Formato de regla invalido para eliminar: ${target}"
+    fi
+    log "            Regla eliminada exitosamente de UFW: ${target}"
+}
+
+ban_ip() {
+    validate_root
+    local ip="$1"
+    [ -n "$ip" ] || die "Debes especificar la direccion IP a banear. Ej: srvctl security ban 192.168.1.100"
+    if ! validate_ipv4 "$ip"; then
+        die "Direccion IPv4 invalida: ${ip}"
+    fi
+    log "[Seguridad] Baneando IP ${ip} en Fail2ban (jaula sshd)..."
+    fail2ban-client set sshd banip "$ip"
+    log "            IP ${ip} baneada exitosamente."
+}
+
+unban_ip() {
+    validate_root
+    local ip="$1"
+    [ -n "$ip" ] || die "Debes especificar la direccion IP a desbanear. Ej: srvctl security unban 192.168.1.100"
+    if ! validate_ipv4 "$ip"; then
+        die "Direccion IPv4 invalida: ${ip}"
+    fi
+    log "[Seguridad] Desbaneando IP ${ip} en Fail2ban (jaula sshd)..."
+    fail2ban-client set sshd unbanip "$ip"
+    log "            IP ${ip} desbaneada exitosamente."
+}
+
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     action="${1:-apply}"
     case "$action" in
         apply)   apply_firewall ;;
         disable) disable_firewall ;;
-        *) die "Uso: $0 [apply|disable]" ;;
+        toggle)  toggle_firewall "${2:-}" ;;
+        allow)   shift; allow_rule "$@" ;;
+        delete)  delete_rule "${2:-}" ;;
+        ban)     ban_ip "${2:-}" ;;
+        unban)   unban_ip "${2:-}" ;;
+        *) die "Uso: $0 [apply|disable|toggle [on|off]|allow <puerto>[/<proto>] [<comentario>]|delete <num|puerto>|ban <ip>|unban <ip>]" ;;
     esac
 fi
