@@ -173,7 +173,7 @@ function panel_projects(array $conf): array
     return $projects;
 }
 
-function panel_databases(array $conf): array
+function panel_databases(array $conf = []): array
 {
     $result = ['ok' => false, 'error' => '', 'databases' => [], 'users' => []];
     $data = panel_srvctl_api('database');
