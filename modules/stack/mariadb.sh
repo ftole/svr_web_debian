@@ -84,6 +84,14 @@ create_database() {
     echo "======================================================================"
 }
 
+is_protected_db_user() {
+    local u="$1"
+    case "$u" in
+        root|pma|debian-sys-maint|mariadb.sys|"${ADMIN_USER:-webadmin}") return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 delete_database() {
     validate_root
     load_config
@@ -94,20 +102,34 @@ delete_database() {
         die "Nombre de base de datos invalido: ${name}."
     fi
 
-    case "$name" in
-        information_schema|performance_schema|mysql|sys|phpmyadmin)
+    local lower_name
+    lower_name="$(echo "$name" | tr '[:upper:]' '[:lower:]')"
+    case "$lower_name" in
+        information_schema|performance_schema|mysql|sys|phpmyadmin|pmadb)
             die "No se permite eliminar bases de datos reservadas del sistema: ${name}"
             ;;
     esac
+
+    # Respaldo preventivo antes del borrado irreversible
+    local trash_dir="/var/backups/srvctl/trash"
+    mkdir -p "$trash_dir"
+    local ts
+    ts="$(date +%Y%m%d_%H%M%S)"
+    if mariadb -e "USE \`${name}\`;" 2>/dev/null; then
+        log "[MariaDB] Generando respaldo preventivo en ${trash_dir}/${name}_${ts}.sql.gz..."
+        mariadb-dump --single-transaction --quick "${name}" 2>/dev/null | gzip -9 > "${trash_dir}/${name}_${ts}.sql.gz" 2>/dev/null || true
+    fi
 
     log "[MariaDB] Eliminando base de datos '${name}'..."
     mariadb -e "DROP DATABASE IF EXISTS \`${name}\`;"
 
     local user="${name%_db}_usr"
-    if [ "$user" != "$name" ]; then
+    if ! is_protected_db_user "$user"; then
         mariadb -e "DROP USER IF EXISTS '${user}'@'localhost', '${user}'@'127.0.0.1';" 2>/dev/null || true
     fi
-    mariadb -e "DROP USER IF EXISTS '${name}'@'localhost', '${name}'@'127.0.0.1';" 2>/dev/null || true
+    if [ "$user" != "$name" ] && ! is_protected_db_user "$name"; then
+        mariadb -e "DROP USER IF EXISTS '${name}'@'localhost', '${name}'@'127.0.0.1';" 2>/dev/null || true
+    fi
     mariadb -e "FLUSH PRIVILEGES;" 2>/dev/null || true
 
     log "[MariaDB] Base de datos '${name}' y accesos eliminados correctamente."
@@ -115,6 +137,9 @@ delete_database() {
 
 optimize_database() {
     validate_root
+    if ! mariadb -e "SELECT 1;" >/dev/null 2>&1; then
+        die "MariaDB no se encuentra activo o no responde para optimizacion."
+    fi
     log "[MariaDB] Optimizando y analizando todas las tablas (mariadb-check)..."
     mariadb-check -A --optimize
     log "[MariaDB] Optimizacion de tablas completada exitosamente."
