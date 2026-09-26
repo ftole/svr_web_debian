@@ -373,18 +373,21 @@ function panel_live_logs(int $since = 0): array
     $id = 1;
 
     $sources = [
-        'apache2'   => '/var/log/apache2/error.log',
-        'srvctl'    => '/var/log/srvctl.log',
-        'php8.4-fpm'=> '/var/log/php8.4-fpm.log',
-        'security'  => '/var/log/sudo.log',
+        'apache2'    => '/var/log/apache2/error.log',
+        'srvctl'     => '/var/log/srvctl.log',
+        'php8.4-fpm' => '/var/log/php8.4-fpm.log',
+        'security'   => '/var/log/sudo.log',
     ];
 
     foreach ($sources as $source => $path) {
         if (is_file($path) && is_readable($path)) {
-            $lines = @file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-            if (is_array($lines)) {
-                $recent = array_slice($lines, -15);
-                foreach ($recent as $line) {
+            [$code, $output] = panel_run('tail -n 15 ' . escapeshellarg($path) . ' 2>/dev/null', 5);
+            if ($code === 0 && $output !== '') {
+                foreach (explode("\n", $output) as $line) {
+                    $line = trim($line);
+                    if ($line === '') {
+                        continue;
+                    }
                     $level = 'INFO';
                     if (stripos($line, 'error') !== false || stripos($line, 'fail') !== false) {
                         $level = 'ERROR';
@@ -551,32 +554,23 @@ function panel_audit_ssl(): array
 
 function panel_dump_db(string $project, array $config): string
 {
+    if (!preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/', $project)) {
+        return '';
+    }
     $envDb = panel_read_env_db($project);
     $dbName = !empty($envDb['database']) ? $envDb['database'] : ($project . '_db');
 
     $dumpDirs = ['/var/backups/srvctl/dumps', '/var/backups/srvctl/database', '/backup/database'];
     foreach ($dumpDirs as $d) {
         $candidates = [
-            $d . '/' . $dbName . '.sql',
             $d . '/' . $dbName . '.sql.gz',
-            $d . '/db_' . $project . '.sql',
+            $d . '/' . $dbName . '.sql',
             $d . '/db_' . $project . '.sql.gz',
+            $d . '/db_' . $project . '.sql',
         ];
         foreach ($candidates as $c) {
             if (is_file($c) && is_readable($c)) {
-                if (str_ends_with($c, '.gz')) {
-                    $gz = @gzopen($c, 'rb');
-                    if ($gz) {
-                        $content = '';
-                        while (!gzeof($gz)) {
-                            $content .= gzread($gz, 65536);
-                        }
-                        gzclose($gz);
-                        return $content;
-                    }
-                } else {
-                    return (string)file_get_contents($c);
-                }
+                return $c;
             }
         }
     }
@@ -597,6 +591,7 @@ function panel_dump_db(string $project, array $config): string
     if ($dumpBin !== '') {
         $user = !empty($envDb['user']) ? $envDb['user'] : ($config['ADMIN_USER'] ?? 'root');
         $pass = !empty($envDb['pass']) ? $envDb['pass'] : ($config['ADMIN_PASS'] ?? '');
+        $tmpFile = tempnam(sys_get_temp_dir(), 'srvctl_dump_') . '.sql';
         $cmd = escapeshellarg($dumpBin) . ' --single-transaction --routines --triggers';
         if ($user !== '') {
             $cmd .= ' -u ' . escapeshellarg($user);
@@ -604,32 +599,15 @@ function panel_dump_db(string $project, array $config): string
         if ($pass !== '') {
             $cmd .= ' -p' . escapeshellarg($pass);
         }
-        $cmd .= ' ' . escapeshellarg($dbName);
-        [$rc, $output] = panel_run($cmd, 60);
-        if ($rc === 0 && !empty($output)) {
-            return $output;
+        $cmd .= ' ' . escapeshellarg($dbName) . ' > ' . escapeshellarg($tmpFile);
+        [$rc] = panel_run($cmd, 120);
+        if ($rc === 0 && is_file($tmpFile) && filesize($tmpFile) > 0) {
+            return $tmpFile;
         }
+        @unlink($tmpFile);
     }
 
-    $ts = date('Y-m-d H:i:s');
-    return <<<SQL
--- ==============================================================================
--- srvctl MariaDB Database Dump
--- Proyecto: {$project}
--- Base de Datos: {$dbName}
--- Host: 127.0.0.1
--- Generado: {$ts}
--- ==============================================================================
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET NAMES utf8mb4 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-
-CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `{$dbName}`;
-
--- Volcado estructurado generado por srvctl dashboard.
-SQL;
+    return '';
 }
 
 function panel_get_conf_content(array $config): string
