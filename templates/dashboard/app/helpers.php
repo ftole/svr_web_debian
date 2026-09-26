@@ -19,6 +19,20 @@ function panel_render_section(string $page, array $CONFIG, string $PANEL_ROOT): 
 {
     $services = panel_services();
     $flashes = [];
+    $serviceResult = $_SESSION['service_result'] ?? null;
+    $securityScan = $_SESSION['security_result'] ?? null;
+    $sslResult = $_SESSION['ssl_result'] ?? null;
+    $sslVerify = $_SESSION['ssl_verify_result'] ?? null;
+    $dbOptimizeResult = $_SESSION['db_result'] ?? null;
+    $backupRestoreResult = $_SESSION['backup_result'] ?? null;
+    $backupVerify = $_SESSION['backup_verify_result'] ?? null;
+    $projectVerifyResult = $_SESSION['project_result'] ?? null;
+    $verify = $_SESSION['verify_result'] ?? null;
+    $updateResult = $_SESSION['update_result'] ?? null;
+    $pendingUpdates = $_SESSION['pending_updates'] ?? [];
+    $updateHistory = $_SESSION['update_history'] ?? [];
+    $lastAptCheck = $_SESSION['last_apt_check'] ?? 'Al día';
+    $liveLogs = panel_live_logs();
     ob_start();
     require $PANEL_ROOT . '/views/' . $page . '.php';
     return (string)ob_get_clean();
