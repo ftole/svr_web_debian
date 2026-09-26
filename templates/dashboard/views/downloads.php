@@ -1,5 +1,6 @@
 <?php
 $downloads = panel_downloads();
+$projects = panel_projects($CONFIG);
 $spec = [
     'title' => 'Módulo 9: Descargas de Clientes y Scripts de Aprovisionamiento',
     'endpoints' => [
@@ -146,7 +147,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <h3 class="download-title">Entorno Desarrollador</h3>
                 <span class="download-filename">configurar-desarrollador.bat</span>
                 <p class="download-desc">
-                    Instala CA raíz, resolución <code>hosts</code>, habilita <code>EnableLinkedConnections</code>, mapea la unidad <code>Z:\</code> a <code>\\<?= e($CONFIG[\'SERVER_IP\']) ?>\proyectos</code> y configura SSH.
+                    Instala CA raíz, resolución <code>hosts</code>, habilita <code>EnableLinkedConnections</code>, mapea la unidad <code>Z:\</code> a <code>\\<?= e($CONFIG['SERVER_IP']) ?>\proyectos</code> y configura SSH.
                 </p>
             </div>
         </div>
@@ -182,12 +183,12 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
             <p class="muted">No hay proyectos con base de datos configurada.</p>
         <?php
         else:
-            foreach ( as ):
-                 = !empty(['db_name']) ? ['db_name'] : (['name'] . '_db');
+            foreach ($dbProjects as $proj):
+                $dbName = !empty($proj['db_name']) ? $proj['db_name'] : ($proj['name'] . '_db');
         ?>
             <div class="download-card">
                 <div class="download-card-body">
-                    <a href="/downloads/db/<?= e($proj[\'name\']) ?>" download="<?= e(dbName) ?>.sql" class="download-icon-btn download-icon-sql" title="Clic para descargar <?= e(dbName) ?>.sql">
+                    <a href="/downloads/db/<?= e($proj['name']) ?>" download="<?= e($dbName) ?>.sql" class="download-icon-btn download-icon-sql" title="Clic para descargar <?= e($dbName) ?>.sql">
                         <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
                             <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
@@ -195,8 +196,8 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                         </svg>
                     </a>
                     <div class="download-meta">
-                        <h3 class="download-title">Proyecto: <code><?= e($proj[\'name\']) ?></code></h3>
-                        <span class="download-filename"><?= e(dbName) ?>.sql</span>
+                        <h3 class="download-title">Proyecto: <code><?= e($proj['name']) ?></code></h3>
+                        <span class="download-filename"><?= e($dbName) ?>.sql</span>
                         <p class="download-desc">
                             Volcado estructurado de MariaDB 11.8 (UTF-8 mb4) con esquema y datos del proyecto.
                         </p>
@@ -204,7 +205,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 </div>
                 <div class="download-actions">
                     <span class="badge">BD MariaDB</span>
-                    <a href="/downloads/db/<?= e($proj[\'name\']) ?>" download="<?= e(dbName) ?>.sql" class="btn btn-outline btn-sm">
+                    <a href="/downloads/db/<?= e($proj['name']) ?>" download="<?= e($dbName) ?>.sql" class="btn btn-outline btn-sm">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="7 10 12 15 17 10"></polyline>
@@ -225,8 +226,8 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
         <h4 style="font-size: 0.9rem; margin-bottom: 8px; font-weight: 600;">Descargar volcado de otro proyecto o base de datos:</h4>
         <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
             <select id="quick-db-select" class="input" style="max-width: 280px;">
-                <?php foreach ( ?? [] as ): ?>
-                    <option value="<?= e($p[\'name\']) ?>"><?= e($p[\'name\']) ?> (<?= e($p[\'db_name\'] ?? ($p[\'name\'] + '_db')) ?>)</option>
+                <?php foreach ($projects ?? [] as $p): ?>
+                    <option value="<?= e($p['name']) ?>"><?= e($p['name']) ?> (<?= e($p['db_name'] ?? ($p['name'] . '_db')) ?>)</option>
                 <?php endforeach; ?>
             </select>
             <button type="button" class="btn btn-primary btn-sm" id="btn-quick-download-db">
