@@ -180,9 +180,13 @@
         ['cpu', 'mem', 'rx', 'tx'].forEach(function (key) {
             while (history[key].length > HISTORY) { history[key].shift(); }
         });
-        drawSpark($('chart-cpu'), history.cpu, '#2563eb');
-        drawSpark($('chart-mem'), history.mem, '#16a34a');
-        drawSpark($('chart-net'), history.rx, '#d97706');
+        var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        var cpuColor = isDark ? '#38BDF8' : '#0284C7';
+        var memColor = isDark ? '#4E816F' : '#5C8D7B';
+        var netColor = isDark ? '#FBBF24' : '#D97706';
+        drawSpark($('chart-cpu'), history.cpu, cpuColor);
+        drawSpark($('chart-mem'), history.mem, memColor);
+        drawSpark($('chart-net'), history.rx, netColor);
 
         var now = new Date();
         setText('live-updated', now.toLocaleTimeString());
@@ -190,7 +194,9 @@
     }
 
     function poll() {
-        fetch('?action=metrics', { headers: { 'Accept': 'application/json' }, cache: 'no-store' })
+        var token = window.SRVCTL_TOKEN || (window.localStorage && localStorage.getItem('srvctl_token')) || '';
+        var url = '?action=metrics' + (token ? '&token=' + encodeURIComponent(token) : '');
+        fetch(url, { headers: { 'Accept': 'application/json' }, cache: 'no-store' })
             .then(function (response) {
                 if (!response.ok) { throw new Error('HTTP ' + response.status); }
                 return response.json();
