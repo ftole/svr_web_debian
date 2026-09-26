@@ -16,9 +16,11 @@ setup_backup() {
     validate_root
     load_config
 
+    validate_disk_space 1536000
+
     local backup_dir="${BACKUP_DIR:-/var/backups/srvctl}"
     log "[Respaldos] Configurando sistema de snapshots rotativos de 7 dias en ${backup_dir}..."
-    mkdir -p "${backup_dir}/snapshots" "${backup_dir}/database" /opt/scripts
+    mkdir -p "${backup_dir}/snapshots" "${backup_dir}/database" /opt/scripts /run/lock
     if [ ! -e /backup ]; then
         ln -sf "${backup_dir}" /backup
     fi
@@ -30,13 +32,36 @@ DATE_STR=\$(date +"%Y-%m-%d_%H-%M-%S")
 LOG_FILE="/var/log/backup-daily.log"
 BACKUP_DIR="${backup_dir}"
 
+mkdir -p "\${BACKUP_DIR}/database" "\${BACKUP_DIR}/snapshots" /run/lock
+
+exec 200>/run/lock/srvctl-backup.lock
+if ! flock -n 200; then
+    echo "[\${DATE_STR}] AVISO: Operacion de respaldo omitida; ya existe otro proceso en ejecucion." >> "\${LOG_FILE}"
+    exit 0
+fi
+
+avail_kb=\$(df -Pk "\${BACKUP_DIR}" 2>/dev/null | awk 'NR==2 {print \$4}')
+if [ -n "\$avail_kb" ] && [ "\$avail_kb" -lt 1536000 ]; then
+    echo "[\${DATE_STR}] ERROR: Espacio critico insuficiente en \${BACKUP_DIR} (\${avail_kb} KB disponibles, minimo 1.5 GB). Respaldo abortado para proteger el sistema." >> "\${LOG_FILE}"
+    exit 1
+fi
+
 echo "=== Respaldo iniciado: \${DATE_STR} ===" >> "\${LOG_FILE}"
 
-if ! mariadb-dump --all-databases --single-transaction --quick | gzip -9 > "\${BACKUP_DIR}/database/db_all_\${DATE_STR}.sql.gz"; then
-    echo "ERROR: Falló el respaldo de bases de datos MariaDB" >> "\${LOG_FILE}"
+DUMP_TMP="\${BACKUP_DIR}/database/db_all_\${DATE_STR}.sql.gz"
+if mariadb-dump --all-databases --single-transaction --quick | gzip -9 > "\${DUMP_TMP}"; then
+    if gzip -t "\${DUMP_TMP}" 2>/dev/null; then
+        echo "[\${DATE_STR}] Volcado MariaDB generado e integro." >> "\${LOG_FILE}"
+    else
+        echo "[\${DATE_STR}] ERROR: Volcado MariaDB corrupto o truncado. Se elimina." >> "\${LOG_FILE}"
+        rm -f "\${DUMP_TMP}"
+    fi
+else
+    echo "[\${DATE_STR}] ERROR: Fallo el volcado de bases de datos MariaDB" >> "\${LOG_FILE}"
+    rm -f "\${DUMP_TMP}"
 fi
-find "\${BACKUP_DIR}/database" -type f -name "db_all_*.sql.gz" -mtime +7 -delete 2>/dev/null || true
 
+find "\${BACKUP_DIR}/database" -type f -name "db_all_*.sql.gz" -mtime +7 -delete 2>/dev/null || true
 
 if [ -d "\${BACKUP_DIR}/snapshots/daily.6" ]; then rm -rf "\${BACKUP_DIR}/snapshots/daily.6"; fi
 for i in 5 4 3 2 1 0; do
@@ -77,8 +102,17 @@ list_backups() {
     fi
 }
 
+acquire_backup_lock() {
+    mkdir -p /run/lock
+    exec 200>/run/lock/srvctl-backup.lock
+    if ! flock -n 200; then
+        die "Existe otra operacion de respaldo o restauracion en curso. Reintenta en unos instantes."
+    fi
+}
+
 rollback_web() {
     validate_root
+    acquire_backup_lock
     local snap="${1:-daily.0}"
     local backup_dir="${BACKUP_DIR:-/var/backups/srvctl}"
     local snap_path="${backup_dir}/snapshots/${snap}"
@@ -93,6 +127,7 @@ rollback_web() {
 rollback_project() {
     validate_root
     load_config
+    acquire_backup_lock
     local project="$1"
     local snap="${2:-daily.0}"
     [ -n "$project" ] || die "Debes especificar el nombre del proyecto. Ej: srvctl backup rollback-project tienda daily.0"
@@ -126,6 +161,7 @@ rollback_project() {
 restore_db() {
     validate_root
     load_config
+    acquire_backup_lock
     local dump_name="$1"
     [ -n "$dump_name" ] || die "Debes especificar el archivo de volcado. Ej: srvctl backup restore-db db_all_2026-09-26.sql.gz"
 
@@ -142,6 +178,10 @@ restore_db() {
         else
             die "El archivo de volcado no existe en ${dump_file}."
         fi
+    fi
+
+    if ! mariadb -e "SELECT 1;" >/dev/null 2>&1; then
+        die "MariaDB no responde o no esta activo para restaurar la base de datos."
     fi
 
     log "[Restore-DB] Importando volcado ${dump_name} en MariaDB..."
