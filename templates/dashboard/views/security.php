@@ -157,17 +157,26 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                     </tr>
                 </thead>
                 <tbody>
-                <?php foreach (($security['ufw']['rules'] ?? []) as $r) { ?>
+                <?php foreach (($security['ufw']['rules'] ?? []) as $r) {
+                    $rPort = is_array($r) ? ($r['port'] ?? 'N/D') : 'N/D';
+                    $rProto = is_array($r) ? ($r['proto'] ?? 'tcp') : '';
+                    $rService = is_array($r) ? ($r['service'] ?? 'Personalizado') : (string)$r;
+                    $rAction = is_array($r) ? ($r['action'] ?? 'ALLOW') : 'ALLOW';
+                    $rFrom = is_array($r) ? ($r['from'] ?? 'Anywhere') : 'Anywhere';
+                    $rId = is_array($r) ? ($r['id'] ?? '') : '';
+                    $ruleLabel = $rProto !== '' ? "{$rPort}/{$rProto}" : (string)$rPort;
+                    $deleteParam = $rId !== '' ? $rId : $ruleLabel;
+                ?>
                     <tr>
-                        <td><strong><code><?= e($r['port']) ?>/<?= e($r['proto']) ?></code></strong></td>
-                        <td><?= e($r['service']) ?></td>
-                        <td><span class="tag tag-ok"><?= e($r['action']) ?></span></td>
-                        <td><code><?= e($r['from']) ?></code></td>
+                        <td><strong><code><?= e($ruleLabel) ?></code></strong></td>
+                        <td><?= e($rService) ?></td>
+                        <td><span class="tag tag-ok"><?= e($rAction) ?></span></td>
+                        <td><code><?= e($rFrom) ?></code></td>
                         <td style="text-align: right;">
-                            <form method="POST" action="/" data-confirm="¿Eliminar la regla para el puerto <?= e($r['port']) ?>/<?= e($r['proto']) ?>?" style="display:inline;">
+                            <form method="POST" action="/" data-confirm="¿Eliminar la regla para el puerto <?= e($ruleLabel) ?>?" style="display:inline;">
                                 <input type="hidden" name="action" value="security_ufw_delete">
                                 <input type="hidden" name="_page" value="security">
-                                <input type="hidden" name="rule_id" value="<?= e($r['id']) ?>">
+                                <input type="hidden" name="rule_id" value="<?= e($deleteParam) ?>">
                                 <?= panel_csrf_field() ?>
                                 <button type="submit" class="btn btn-outline btn-sm" title="Eliminar regla">Eliminar</button>
                             </form>
