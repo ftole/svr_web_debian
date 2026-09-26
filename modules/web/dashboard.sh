@@ -83,29 +83,45 @@ deploy_dashboard() {
 set -euo pipefail
 # Wrapper seguro para invocar srvctl desde PHP
 read -r ACTION TARGET EXTRA <<< "${SRVCTL_CMD:-}"
+
+rx_service_restart='^(apache2|php[0-9.]*-fpm|mariadb|redis-server|smbd|ufw|fail2ban)$'
+rx_service_reload='^(apache2|php[0-9.]*-fpm)$'
+rx_fw_toggle='^(on|off)$'
+rx_fw_allow='^[0-9]+(/[a-z]+)?([[:blank:]]+[a-zA-Z0-9_.-]+)*$'
+rx_fw_del='^[0-9]+(/[a-z]+)?$'
+rx_ipv4='^([0-9]{1,3}\.){3}[0-9]{1,3}$'
+rx_snap='^[a-zA-Z0-9_.-]+$'
+rx_snap_proj='^[a-zA-Z0-9_-]+[[:blank:]]+[a-zA-Z0-9_.-]+$'
+rx_db_dump='^[a-zA-Z0-9_.-]+\.sql(\.gz)?$'
+rx_db_create='^[a-z0-9_]{1,64}[[:blank:]]+[a-z0-9_]{1,32}([[:blank:]]+[a-zA-Z0-9_@#$%^&*!.-]+)?$'
+rx_db_name='^[a-z0-9_]{1,64}$'
+rx_pkg='^[a-zA-Z0-9.+_-]+$'
+rx_pass='^[a-zA-Z0-9_@#$%^&*!.-]{6,128}$'
+rx_proj_extra='^[a-zA-Z0-9_[:blank:]-]+$'
+
 case "$ACTION" in
     "service")
-        if [ "$TARGET" = "restart" ] && [[ "$EXTRA" =~ ^(apache2|php[0-9.]*-fpm|mariadb|redis-server|smbd|ufw|fail2ban)$ ]]; then
+        if [ "$TARGET" = "restart" ] && [[ "$EXTRA" =~ $rx_service_restart ]]; then
             exec /usr/local/bin/srvctl service restart "$EXTRA"
-        elif [ "$TARGET" = "reload" ] && [[ "$EXTRA" =~ ^(apache2|php[0-9.]*-fpm)$ ]]; then
+        elif [ "$TARGET" = "reload" ] && [[ "$EXTRA" =~ $rx_service_reload ]]; then
             exec /usr/local/bin/srvctl service reload "$EXTRA"
         fi
         ;;
     "firewall")
-        if [ "$TARGET" = "toggle" ] && { [ -z "$EXTRA" ] || [[ "$EXTRA" =~ ^(on|off)$ ]]; }; then
+        if [ "$TARGET" = "toggle" ] && { [ -z "$EXTRA" ] || [[ "$EXTRA" =~ $rx_fw_toggle ]]; }; then
             # shellcheck disable=SC2086
             exec /usr/local/bin/srvctl firewall toggle $EXTRA
-        elif [ "$TARGET" = "allow" ] && [[ "$EXTRA" =~ ^[0-9]+(/[a-z]+)?( +[a-zA-Z0-9_.-]+)*$ ]]; then
+        elif [ "$TARGET" = "allow" ] && [[ "$EXTRA" =~ $rx_fw_allow ]]; then
             # shellcheck disable=SC2086
             exec /usr/local/bin/srvctl firewall allow $EXTRA
-        elif [ "$TARGET" = "delete" ] && [[ "$EXTRA" =~ ^[0-9]+(/[a-z]+)?$ ]]; then
+        elif [ "$TARGET" = "delete" ] && [[ "$EXTRA" =~ $rx_fw_del ]]; then
             exec /usr/local/bin/srvctl firewall delete "$EXTRA"
         fi
         ;;
     "security")
-        if [ "$TARGET" = "ban" ] && [[ "$EXTRA" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+        if [ "$TARGET" = "ban" ] && [[ "$EXTRA" =~ $rx_ipv4 ]]; then
             exec /usr/local/bin/srvctl security ban "$EXTRA"
-        elif [ "$TARGET" = "unban" ] && [[ "$EXTRA" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+        elif [ "$TARGET" = "unban" ] && [[ "$EXTRA" =~ $rx_ipv4 ]]; then
             exec /usr/local/bin/srvctl security unban "$EXTRA"
         elif [ "$TARGET" = "scan" ] && [ -z "$EXTRA" ]; then
             exec /usr/local/bin/srvctl security scan
@@ -123,20 +139,20 @@ case "$ACTION" in
             exec /usr/local/bin/srvctl backup list
         elif [ "$TARGET" = "verify" ] && [ -z "$EXTRA" ]; then
             exec /usr/local/bin/srvctl backup verify
-        elif [ "$TARGET" = "rollback" ] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_\.-]+$ ]]; then
+        elif [ "$TARGET" = "rollback" ] && [[ "$EXTRA" =~ $rx_snap ]]; then
             exec /usr/local/bin/srvctl backup rollback "$EXTRA"
-        elif [ "$TARGET" = "rollback-project" ] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_-]+ +[a-zA-Z0-9_\.-]+$ ]]; then
+        elif [ "$TARGET" = "rollback-project" ] && [[ "$EXTRA" =~ $rx_snap_proj ]]; then
             # shellcheck disable=SC2086
             exec /usr/local/bin/srvctl backup rollback-project $EXTRA
-        elif [ "$TARGET" = "restore-db" ] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_\.-]+\.sql(\.gz)?$ ]]; then
+        elif [ "$TARGET" = "restore-db" ] && [[ "$EXTRA" =~ $rx_db_dump ]]; then
             exec /usr/local/bin/srvctl backup restore-db "$EXTRA"
         fi
         ;;
     "db")
-        if [ "$TARGET" = "create" ] && [[ "$EXTRA" =~ ^[a-z0-9_]{1,64} +[a-z0-9_]{1,32}( +[a-zA-Z0-9_@#$%^&*!.-]+)?$ ]]; then
+        if [ "$TARGET" = "create" ] && [[ "$EXTRA" =~ $rx_db_create ]]; then
             # shellcheck disable=SC2086
             exec /usr/local/bin/srvctl db create $EXTRA
-        elif [ "$TARGET" = "delete" ] && [[ "$EXTRA" =~ ^[a-z0-9_]{1,64}$ ]]; then
+        elif [ "$TARGET" = "delete" ] && [[ "$EXTRA" =~ $rx_db_name ]]; then
             exec /usr/local/bin/srvctl db delete "$EXTRA"
         elif [ "$TARGET" = "optimize" ] && [ -z "$EXTRA" ]; then
             exec /usr/local/bin/srvctl db optimize
@@ -153,15 +169,15 @@ case "$ACTION" in
         elif [ "$TARGET" = "upgrade" ]; then
             if [ -z "$EXTRA" ]; then
                 exec /usr/local/bin/srvctl system upgrade
-            elif [[ "$EXTRA" =~ ^[a-zA-Z0-9.+_-]+$ ]]; then
+            elif [[ "$EXTRA" =~ $rx_pkg ]]; then
                 exec /usr/local/bin/srvctl system upgrade "$EXTRA"
             fi
-        elif [ "$TARGET" = "change-password" ] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_@#$%^&*!.-]{6,128}$ ]]; then
+        elif [ "$TARGET" = "change-password" ] && [[ "$EXTRA" =~ $rx_pass ]]; then
             exec /usr/local/bin/srvctl system change-password "$EXTRA"
         fi
         ;;
     "project")
-        if [[ "$TARGET" =~ ^(create|delete|db)$ ]] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_\ -]+$ ]]; then
+        if [[ "$TARGET" =~ ^(create|delete|db)$ ]] && [[ "$EXTRA" =~ $rx_proj_extra ]]; then
             # Se permite la expansión de $EXTRA (sin comillas) porque ya fue validado por una regex estricta
             # Esto permite pasar comandos como: project db <proyecto> <bd_personalizada>
             # shellcheck disable=SC2086
