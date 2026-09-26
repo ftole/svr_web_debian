@@ -43,9 +43,55 @@ function panel_load_config(): array
         }
     }
 
-    $conf['PROD_FQDN'] = $conf['PROD_FQDN'] ?? ($conf['PROD_SUB'] . '.' . $conf['BASE_DOMAIN']);
-    $conf['STG_FQDN']  = $conf['STG_FQDN'] ?? ($conf['STG_SUB'] . '.' . $conf['BASE_DOMAIN']);
-    $conf['DB_FQDN']   = $conf['DB_FQDN'] ?? ($conf['DB_SUB'] . '.' . $conf['BASE_DOMAIN']);
+    // Aplicar sobreescrituras guardadas en sesion si existen
+    if (!empty($_SESSION['config_overrides']) && is_array($_SESSION['config_overrides'])) {
+        foreach ($_SESSION['config_overrides'] as $key => $value) {
+            $conf[$key] = $value;
+        }
+    }
+
+    $conf['PROD_FQDN'] = $conf['PROD_SUB'] . '.' . $conf['BASE_DOMAIN'];
+    $conf['STG_FQDN']  = $conf['STG_SUB'] . '.' . $conf['BASE_DOMAIN'];
+    $conf['DB_FQDN']   = $conf['DB_SUB'] . '.' . $conf['BASE_DOMAIN'];
 
     return $conf;
+}
+
+function panel_save_config(array $params): bool
+{
+    if (!isset($_SESSION['config_overrides']) || !is_array($_SESSION['config_overrides'])) {
+        $_SESSION['config_overrides'] = [];
+    }
+    foreach ($params as $k => $v) {
+        $_SESSION['config_overrides'][$k] = $v;
+    }
+
+    $files = ['/etc/srvctl.conf', '/etc/srvctl-panel.conf'];
+    foreach ($files as $file) {
+        if (is_file($file) && is_writable($file)) {
+            $lines = @file($file, FILE_IGNORE_NEW_LINES) ?: [];
+            $updated = [];
+            $newLines = [];
+            foreach ($lines as $line) {
+                $trimmed = trim($line);
+                if ($trimmed !== '' && $trimmed[0] !== '#' && str_contains($trimmed, '=')) {
+                    [$k, $v] = explode('=', $trimmed, 2);
+                    $k = trim($k);
+                    if (array_key_exists($k, $params)) {
+                        $newLines[] = $k . '="' . addcslashes((string)$params[$k], '"\\') . '"';
+                        $updated[] = $k;
+                        continue;
+                    }
+                }
+                $newLines[] = $line;
+            }
+            foreach ($params as $k => $v) {
+                if (!in_array($k, $updated, true)) {
+                    $newLines[] = $k . '="' . addcslashes((string)$v, '"\\') . '"';
+                }
+            }
+            @file_put_contents($file, implode("\n", $newLines) . "\n", LOCK_EX);
+        }
+    }
+    return true;
 }
