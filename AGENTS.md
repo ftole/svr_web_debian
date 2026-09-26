@@ -32,6 +32,8 @@ Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.
 | `templates/dashboard/` | Codigo fuente del Panel de Control multiarchivo (`index.php`, `app/`, `views/`, `partials/`, `assets/`, `not_found.php`). |
 | `templates/windows/` | Scripts de aprovisionamiento en 1 clic para clientes (`configurar-cliente.bat`, `configurar-desarrollador.bat`) con inyeccion de resolucion en el archivo `hosts`. |
 | `tests/test_validator.sh` | Suite de pruebas unitarias automatizadas y chaos testing de validacion de entradas. |
+| `.agents/rules/` | Reglas operativas y directrices de orquestacion multi-agente. |
+| `.agents/skills/` | Catalogo de habilidades modulares especializadas para agentes de trabajo. |
 | `install.sh` | Bootstrap de instalacion via `curl`: descarga a `/opt/srvctl` y enlaza el CLI global. |
 | `README.md` | Manual principal y documentacion de arquitectura. |
 | `Manual.md` | Manual de operacion y guia paso a paso en lenguaje 100% humano. |
@@ -49,6 +51,8 @@ Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.
 4. **No añadir comentarios** al código salvo que aporten valor real; el código de shell se documenta con bloques claros.
 5. **CI en verde** es requisito antes de dar por terminado un cambio (ver §5).
 6. Antes de commitear, validar sintaxis con `bash -n`, `shellcheck -S warning` y ejecutar `tests/test_validator.sh`.
+7. **Paradigma Multi-Agente Obligatorio:** Todo desarrollo, refactorización, endurecimiento o auditoría compleja debe abordarse coordinando agentes y subagentes concurrentes y especializados (ej. Coordinador, Desarrollador de Scripts, Desarrollador UI, Auditor de Seguridad/Caos y Verificador QA). Ningún cambio se da por concluido sin validación cruzada entre agentes.
+8. **Invariantes Anti-Autoaniquilación (Self-Defending System):** Todo script, endpoint o acción interactiva debe incorporar protecciones activas contra acciones destructivas o accidentales del usuario (guardrails en firewall contra auto-bloqueo SSH, prohibición estricta de borrado de recursos de sistema, pruebas pre-vuelo antes de reiniciar servicios y bloqueos de concurrencia con `flock`).
 
 ## 4. Valores por defecto del despliegue
 
@@ -115,6 +119,13 @@ Comprobar: `gh run list --limit 3`.
 9. **Usuario de instalación del SO:** El primer UID ≥ 1000 con shell se anade a `sudo` por defecto.
 10. **Aprovisionamiento Automático DB:** `srvctl project db <nombre>` genera la base de datos MariaDB, usuario dedicado y archivo `.env` en `public_html`.
 11. **Compatibilidad de Acceso Dual (Subdominio y Ruta):** En `00-dashboard.conf`, Apache mapea mediante mod_rewrite cualquier ruta que coincida con una carpeta de proyecto existente en `/var/www/<nombre>/public_html` con forzado de barra final (301) para preservar hipervínculos relativos. Los recursos internos del Dashboard (`app`, `assets`, `downloads`, `partials`, `views`), `not_found.php` y phpMyAdmin (`/phpmyadmin`, `/${DB_SUB}`) quedan reservados y protegidos.
+12. **Principio Anti-Autoaniquilación y Guardrails:** La plataforma está diseñada para protegerse a sí misma de la intervención del usuario:
+    - *Firewall / SSH:* Nunca permitir la eliminación de la regla de acceso SSH ni la desactivación de UFW sin verificar que el puerto SSH esté garantizado. Fail2ban mantiene IPs de administración en lista blanca (`ignoreip`).
+    - *Pre-vuelos obligatorios (Config-Test First):* Prohibido reiniciar Apache o PHP-FPM sin validar previamente la sintaxis (`apache2ctl configtest`, `php-fpm8.4 -t`). Si la prueba falla, el servicio en ejecución no se interrumpe y se reporta el error.
+    - *Inmutabilidad de esquemas y directorios:* Prohibición absoluta de eliminar o renombrar esquemas de base de datos (`mysql`, `sys`, `information_schema`, `performance_schema`, `pmadb`, `phpmyadmin`) o directorios del sistema (`_dashboard`, `lost+found`, proyectos base).
+    - *Bloqueo de concurrencia (`flock`):* Operaciones críticas o de larga duración (actualizaciones del sistema, respaldos masivos, optimizaciones) deben usar descriptores de bloqueo atómicos (`flock`) para evitar condiciones de carrera o ejecuciones simultáneas.
+    - *Escrituras atómicas:* Todo archivo de configuración modificado por `srvctl` se escribe primero en un temporal y se sustituye atómicamente (`install -m` o `mv`).
+13. **Desacoplamiento y Degradación Elegante en Dashboard:** Si un servicio dependiente (MariaDB, Redis, Samba) colapsa, la interfaz web del Dashboard debe mantenerse 100% operativa, reportando el estado visualmente y aislando el fallo sin generar pantallas en blanco (WSOD) ni errores fatales no capturados.
 
 ## 9. Seguridad
 
@@ -122,3 +133,16 @@ Comprobar: `gh run list --limit 3`.
 - Credenciales operativas guardadas en `/etc/srvctl.conf` y `/etc/asistente_servidor.conf` con permisos `600` (solo root).
 - Auditoria de comandos con privilegios en `/var/log/sudo.log`.
 - `debian_pruebas.txt` esta en `.gitignore`; nunca subirlo.
+
+## 10. Catálogo de Skills Especializadas (.agents/skills/)
+
+| Skill | Enfoque y Responsabilidad |
+| :--- | :--- |
+| `multi-agent-orchestration` | Protocolo de división de trabajo, sincronización y validación cruzada concurrente entre múltiples agentes. |
+| `script-hardener-shell` | Estándares de desarrollo de scripts Bash ultra-robustos (`set -euo pipefail`, trampas `trap`, validación estricta, `flock`, reemplazo atómico). |
+| `self-defense-guardian` | Guardrails de auto-protección del servidor (protección SSH/UFW, pre-vuelos antes de recargas, esquemas y carpetas inmutables). |
+| `chaos-anti-breakage` | Metodología de auditoría contra dobles envíos, tolerancia a servicios caídos y resiliencia en frontend. |
+| `fullstack-integration` | Especificación técnica de la cadena segura Navegador -> PHP -> Wrapper -> CLI -> JSON. |
+| `security-resilience` | Auditoría de seguridad ofensiva y defensiva (inyección de comandos, path traversal, CSRF, sudoers). |
+| `dashboard-bulletproof-ui` | UI/UX resiliente, sin scripts inline (estricto CSP), deshabilitación reactiva de formularios y degradación elegante. |
+| `qa-automated-verifier` | Arnés de ejecución automatizada de pruebas (`tests/`), linters (`shellcheck`, `bash -n`), `actionlint` y validación de regresión. |
