@@ -1,5 +1,5 @@
 <?php
-$db = panel_databases();
+$db = panel_databases($CONFIG ?? []);
 
 $spec = [
     'title' => 'Módulo 3: Bases de Datos MariaDB 11.8 y phpMyAdmin',
