@@ -148,7 +148,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
         ?>
             <div class="download-card">
                 <div class="download-card-body">
-                    <a href="/downloads/db/<?= e($proj['name']) ?>" download="<?= e($dbName) ?>.sql" class="download-icon-btn download-icon-sql" title="Clic para descargar <?= e($dbName) ?>.sql">
+                    <a href="/?action=download&type=db&project=<?= urlencode($proj['name']) ?>" download="<?= e($dbName) ?>.sql" class="download-icon-btn download-icon-sql" title="Clic para descargar <?= e($dbName) ?>.sql">
                         <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
                             <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
@@ -165,7 +165,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 </div>
                 <div class="download-actions">
                     <span class="badge">BD MariaDB</span>
-                    <a href="/downloads/db/<?= e($proj['name']) ?>" download="<?= e($dbName) ?>.sql" class="btn btn-outline btn-sm">
+                    <a href="/?action=download&type=db&project=<?= urlencode($proj['name']) ?>" download="<?= e($dbName) ?>.sql" class="btn btn-outline btn-sm">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="7 10 12 15 17 10"></polyline>
@@ -211,7 +211,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
             var proj = select.value;
             if (proj) {
                 var a = document.createElement('a');
-                a.href = '/downloads/db/' + encodeURIComponent(proj);
+                a.href = '/?action=download&type=db&project=' + encodeURIComponent(proj);
                 a.download = proj + '_db.sql';
                 document.body.appendChild(a);
                 a.click();
