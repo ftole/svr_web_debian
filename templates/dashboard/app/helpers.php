@@ -112,17 +112,24 @@ function panel_redirect(string $page, array $params = []): void
     exit;
 }
 
-function panel_run(string $command, int $timeout = 0): array
+function panel_run(string $command, int $timeout = 10): array
 {
     $out = [];
     $code = 0;
-    if ($timeout > 0 && function_exists('proc_open')) {
-        $proc = proc_open($command, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+    if (function_exists('proc_open')) {
+        $wrappedCmd = 'setsid ' . $command;
+        $descriptors = [
+            0 => ['file', '/dev/null', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+        $proc = proc_open($wrappedCmd, $descriptors, $pipes);
         if (is_resource($proc)) {
             stream_set_blocking($pipes[1], false);
             stream_set_blocking($pipes[2], false);
             $buffer = '';
             $start = time();
+            $timedOut = false;
             while (true) {
                 $buffer .= (string)stream_get_contents($pipes[1]);
                 $buffer .= (string)stream_get_contents($pipes[2]);
@@ -131,8 +138,13 @@ function panel_run(string $command, int $timeout = 0): array
                     $code = (int)$status['exitcode'];
                     break;
                 }
-                if ((time() - $start) > $timeout) {
+                if ($timeout > 0 && (time() - $start) > $timeout) {
+                    $pgid = (int)$status['pid'];
+                    if ($pgid > 0) {
+                        @shell_exec('kill -9 -' . $pgid . ' 2>/dev/null');
+                    }
                     proc_terminate($proc, 9);
+                    $timedOut = true;
                     $code = 124;
                     break;
                 }
