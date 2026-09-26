@@ -1,5 +1,10 @@
 <?php
-// Variables pasadas por el controlador (como $verify, $pendingUpdates, $liveLogs, etc.)
+$verify = $verify ?? ($_SESSION['verify_result'] ?? null);
+$pendingUpdates = $pendingUpdates ?? [];
+$updateResult = $updateResult ?? ($_SESSION['update_result'] ?? null);
+$updateHistory = $updateHistory ?? [];
+$liveLogs = $liveLogs ?? [];
+$lastAptCheck = $lastAptCheck ?? 'Al día';
 $spec = [
     'title' => 'Módulo 8: Diagnóstico, Auditoría srvctl verify y Logs en Vivo',
     'endpoints' => [
@@ -169,7 +174,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
     <?php if (!empty($updateResult)): ?>
         <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 20px;">
             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                <span class="tag tag-ok">Actualización completada (<?= e($updateResult[\'count\']) ?> paquetes) · <?= e($updateResult[\'timestamp\']) ?></span>
+                <span class="tag tag-ok">Actualización completada (<?= e($updateResult['count']) ?> paquetes) · <?= e($updateResult['timestamp']) ?></span>
                 <form method="POST" action="/" style="display:inline;">
                     <input type="hidden" name="action" value="clear_update_result">
                     <input type="hidden" name="_page" value="diagnostics">
@@ -177,7 +182,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                     <button type="submit" class="btn btn-outline btn-sm">Cerrar terminal</button>
                 </form>
             </div>
-            <pre class="terminal"><?= e($updateResult[\'output\']) ?></pre>
+            <pre class="terminal"><?= e($updateResult['output']) ?></pre>
         </div>
     <?php endif; ?>
 
@@ -205,10 +210,10 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <tbody>
                     <?php foreach ($pendingUpdates ?? [] as $pkg): ?>
                         <tr>
-                            <td><strong><code><?= e($pkg[\'name\']) ?></code></strong></td>
-                            <td><code><?= e($pkg[\'current\']) ?></code></td>
-                            <td><code style="color: var(--primary); font-weight: 700;"><?= e($pkg[\'available\']) ?></code></td>
-                            <td><?= e($pkg[\'repo\']) ?></td>
+                            <td><strong><code><?= e($pkg['name']) ?></code></strong></td>
+                            <td><code><?= e($pkg['current']) ?></code></td>
+                            <td><code style="color: var(--primary); font-weight: 700;"><?= e($pkg['available']) ?></code></td>
+                            <td><?= e($pkg['repo']) ?></td>
                             <td>
                                 <?php if ($pkg['type'] === 'security'): ?>
                                     <span class="badge-security">Seguridad</span>
@@ -216,11 +221,11 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                                     <span class="badge-regular">Actualización</span>
                                 <?php endif; ?>
                             </td>
-                            <td><?= e($pkg[\'size\']) ?></td>
+                            <td><?= e($pkg['size']) ?></td>
                             <td style="text-align: right;">
-                                <form method="POST" action="/" data-loading="Actualizando <?= e($pkg[\'name\']) ?>…" style="display:inline;">
+                                <form method="POST" action="/" data-loading="Actualizando <?= e($pkg['name']) ?>…" style="display:inline;">
                                     <input type="hidden" name="action" value="run_system_update">
-                                    <input type="hidden" name="package_name" value="<?= e($pkg[\'name\']) ?>">
+                                    <input type="hidden" name="package_name" value="<?= e($pkg['name']) ?>">
                                     <input type="hidden" name="_page" value="diagnostics">
                                     <?= panel_csrf_field() ?>
                                     <button type="submit" class="btn btn-outline btn-sm">Actualizar</button>
@@ -249,8 +254,8 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
             <ul style="list-style: none; font-size: 0.82rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
                 <?php foreach ($updateHistory ?? [] as $h): ?>
                     <li style="display: flex; align-items: center; justify-content: space-between;">
-                        <span>Actualización de <?= e($h[\'packages\']) ?> paquete(s) por <code><?= e($h[\'user\']) ?></code></span>
-                        <span><span class="tag tag-ok"><?= e($h[\'status\']) ?></span> · <?= e($h[\'date\']) ?></span>
+                        <span>Actualización de <?= e($h['packages']) ?> paquete(s) por <code><?= e($h['user']) ?></code></span>
+                        <span><span class="tag tag-ok"><?= e($h['status']) ?></span> · <?= e($h['date']) ?></span>
                     </li>
                 <?php endforeach; ?>
             </ul>
@@ -278,12 +283,12 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
     <?php if (!empty($verify)): ?>
         <div class="verify-summary" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
             <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="tag tag-ok"><?= e($verify[\'pass\']) ?> OK</span>
+                <span class="tag tag-ok"><?= e($verify['pass']) ?> OK</span>
                 <?php if (!empty($verify) && $verify['fail'] > 0): ?>
-                    <span class="tag tag-err"><?= e($verify[\'fail\']) ?> fallos</span>
+                    <span class="tag tag-err"><?= e($verify['fail']) ?> fallos</span>
                 <?php endif; ?>
-                <span class="badge">Tiempo: <?= e($verify[\'duration\'] ?? '0.38s') ?></span>
-                <span class="muted" style="font-size: 0.8rem;"><?= e($verify[\'timestamp\']) ?></span>
+                <span class="badge">Tiempo: <?= e($verify['duration'] ?? '0.38s') ?></span>
+                <span class="muted" style="font-size: 0.8rem;"><?= e($verify['timestamp']) ?></span>
             </div>
             <form method="POST" action="/" style="display:inline;">
                 <input type="hidden" name="action" value="clear_verify">
@@ -375,11 +380,11 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
     <div class="live-log-console" id="live-log-console-box">
         <?php if (!empty($liveLogs)): ?>
             <?php foreach ($liveLogs ?? [] as $l): ?>
-                <div class="live-log-line" data-id="<?= e($l[\'id\']) ?>" data-source="<?= e($l[\'source\']) ?>" data-level="<?= e($l[\'level\']) ?>">
-                    <span class="log-time">[<?= e($l[\'timeOnly\'] ?? $l[\'timestamp\']) ?>]</span>
-                    <span class="log-source">[<?= e($l[\'source\']) ?>]</span>
-                    <span class="log-badge <?= e($l[\'level\']) ?>"><?= e($l[\'level\']) ?></span>
-                    <span class="log-msg"><?= e($l[\'message\']) ?></span>
+                <div class="live-log-line" data-id="<?= e($l['id']) ?>" data-source="<?= e($l['source']) ?>" data-level="<?= e($l['level']) ?>">
+                    <span class="log-time">[<?= e($l['timeOnly'] ?? $l['timestamp']) ?>]</span>
+                    <span class="log-source">[<?= e($l['source']) ?>]</span>
+                    <span class="log-badge <?= e($l['level']) ?>"><?= e($l['level']) ?></span>
+                    <span class="log-msg"><?= e($l['message']) ?></span>
                 </div>
             <?php endforeach; ?>
         <?php else: ?>
