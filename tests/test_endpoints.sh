@@ -13,10 +13,10 @@ echo "--- 4.1: Prueba de Protección No Autenticada (HTTP 403) ---"
 test_unauth() {
     local action="$1"
     echo -n "Probando endpoint unauth '?action=$action'... "
-    local http_code body
+    local http_code body json
     body=$(curl -k -s -w "\n%{http_code}" "https://127.0.0.1/?action=${action}")
     http_code=$(echo "$body" | tail -n 1)
-    local json=$(echo "$body" | sed '$d')
+    json=$(echo "$body" | sed '$d')
 
     if [ "$http_code" = "403" ] && [[ "$json" =~ "unauthorized" ]]; then
         echo "[PASS] (HTTP $http_code, respuesta: $json)"
