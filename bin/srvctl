@@ -289,6 +289,11 @@ cmd_project_create() {
         die "Nombre de proyecto invalido. Usa solo letras minusculas, numeros y guiones."
     fi
 
+    local reserved_names="^(prod|stg|html|_dashboard|lost\+found|app|assets|downloads|partials|views|not_found|phpmyadmin|${DB_SUB:-webdev})$"
+    if [[ "$name" =~ $reserved_names ]] || [[ "$name" =~ ^_ ]]; then
+        die "ACCION DENEGADA: El nombre '${name}' esta reservado por el sistema o por las rutas del Dashboard."
+    fi
+
     local pdir="/var/www/${name}"
     local pubdir="${pdir}/public_html"
 
@@ -422,7 +427,11 @@ cmd_project_delete() {
         die "Nombre de proyecto invalido. Usa solo letras minusculas, numeros y guiones."
     fi
 
-    if { [ "$name" = "prod" ] || [ "$name" = "stg" ] || [ "$name" = "html" ] || [[ "$name" =~ ^_ ]]; } && [ "$force" != "--force" ]; then
+    if [ "$name" = "_dashboard" ] || [ "$name" = "lost+found" ] || [ "$name" = "html" ]; then
+        die "ACCION DENEGADA: El directorio '${name}' es de infraestructura critica del sistema y no puede eliminarse."
+    fi
+
+    if { [ "$name" = "prod" ] || [ "$name" = "stg" ] || [[ "$name" =~ ^_ ]]; } && [ "$force" != "--force" ]; then
         die "No se permite eliminar proyectos base del sistema (${name}) sin --force."
     fi
 
@@ -440,17 +449,57 @@ cmd_project_delete() {
 
     local db_name="${name//-/_}_db"
     local db_user="${name//-/_}_usr"
-    mariadb -e "DROP DATABASE IF EXISTS \`${db_name}\`;" 2>/dev/null || true
-    if [ -n "${env_db}" ] && [ "${env_db}" != "${db_name}" ]; then
-        mariadb -e "DROP DATABASE IF EXISTS \`${env_db}\`;" 2>/dev/null || true
+
+    # Respaldo preventivo antes del borrado
+    local trash_dir="/var/backups/srvctl/trash"
+    mkdir -p "$trash_dir"
+    local ts
+    ts="$(date +%Y%m%d_%H%M%S)"
+    if mariadb -e "USE \`${db_name}\`;" 2>/dev/null; then
+        mariadb-dump --single-transaction --quick "${db_name}" 2>/dev/null | gzip -9 > "${trash_dir}/${db_name}_${ts}.sql.gz" 2>/dev/null || true
     fi
-    mariadb -e "DROP USER IF EXISTS '${db_user}'@'localhost', '${db_user}'@'127.0.0.1';" 2>/dev/null || true
+
+    mariadb -e "DROP DATABASE IF EXISTS \`${db_name}\`;" 2>/dev/null || true
+
+    local is_sys_db="^(information_schema|performance_schema|mysql|sys|phpmyadmin|pmadb)$"
+    if [ -n "${env_db}" ] && [ "${env_db}" != "${db_name}" ]; then
+        local lower_env_db
+        lower_env_db="$(echo "$env_db" | tr '[:upper:]' '[:lower:]')"
+        if [[ "$lower_env_db" =~ $is_sys_db ]]; then
+            log "[AVISO] La base de datos '${env_db}' especificada en .env es de sistema y NO sera eliminada."
+        else
+            mariadb -e "DROP DATABASE IF EXISTS \`${env_db}\`;" 2>/dev/null || true
+        fi
+    fi
+
+    case "$db_user" in
+        root|pma|debian-sys-maint|mariadb.sys|"${ADMIN_USER:-webadmin}") ;;
+        *) mariadb -e "DROP USER IF EXISTS '${db_user}'@'localhost', '${db_user}'@'127.0.0.1';" 2>/dev/null || true ;;
+    esac
 
     log "[Proyecto] Proyecto '${name}' y base de datos eliminados correctamente."
 }
 
 cmd_reset() {
     validate_root
+    local confirm="${1:-}"
+    if [ "$confirm" != "--confirm-destroy-all" ]; then
+        if [ -t 0 ]; then
+            echo "======================================================================"
+            echo "                ADVERTENCIA CRITICA DE SEGURIDAD                      "
+            echo "======================================================================"
+            echo "Esta accion eliminara TODOS los servicios, proyectos, bases de datos"
+            echo "y respaldos de srvctl, restaurando el servidor al estado inicial limpio."
+            echo ""
+            read -rp "Para confirmar, escribe 'DESTRUIR' en mayusculas: " typed_confirm
+            if [ "$typed_confirm" != "DESTRUIR" ]; then
+                die "Operacion de reset cancelada."
+            fi
+        else
+            die "Para resetear el servidor por linea de comandos se requiere el parametro: --confirm-destroy-all"
+        fi
+    fi
+
     log "[Reset] Restaurando servidor al estado base limpio..."
     bash "${SRVCTL_ROOT}/modules/security/firewall.sh" disable
     systemctl stop apache2 "php${PHP_VER:-8.4}-fpm" mariadb redis-server smbd fail2ban 2>/dev/null || true
@@ -634,6 +683,21 @@ cmd_service_restart() {
         die "Servicio '${unit}' no permitido para reinicio. Permitidos: apache2, php8.4-fpm, mariadb, redis-server, smbd, ufw, fail2ban."
     fi
 
+    if [ "$unit" = "apache2" ] && command -v apache2ctl >/dev/null 2>&1; then
+        if ! apache2ctl configtest >/dev/null 2>&1; then
+            die "Error de sintaxis en configuracion de Apache (configtest fallo). Servicio NO reiniciado para proteger el Dashboard."
+        fi
+    fi
+
+    if [[ "$unit" =~ ^php[0-9.]*-fpm$ ]]; then
+        local fpm_bin="$unit"
+        if command -v "$fpm_bin" >/dev/null 2>&1; then
+            if ! "$fpm_bin" -t >/dev/null 2>&1; then
+                die "Error de sintaxis en configuracion de PHP-FPM (${fpm_bin} -t fallo). Servicio NO reiniciado."
+            fi
+        fi
+    fi
+
     log "[Servicio] Reiniciando ${unit}..."
     systemctl restart "$unit"
     log "[Servicio] Servicio ${unit} reiniciado correctamente."
@@ -648,6 +712,21 @@ cmd_service_reload() {
     local allowed="^(apache2|php[0-9.]*-fpm)$"
     if [[ ! "$unit" =~ $allowed ]]; then
         die "Servicio '${unit}' no permitido para recarga. Permitidos: apache2, php8.4-fpm."
+    fi
+
+    if [ "$unit" = "apache2" ] && command -v apache2ctl >/dev/null 2>&1; then
+        if ! apache2ctl configtest >/dev/null 2>&1; then
+            die "Error de sintaxis en configuracion de Apache (configtest fallo). Servicio NO recargado."
+        fi
+    fi
+
+    if [[ "$unit" =~ ^php[0-9.]*-fpm$ ]]; then
+        local fpm_bin="$unit"
+        if command -v "$fpm_bin" >/dev/null 2>&1; then
+            if ! "$fpm_bin" -t >/dev/null 2>&1; then
+                die "Error de sintaxis en configuracion de PHP-FPM (${fpm_bin} -t fallo). Servicio NO recargado."
+            fi
+        fi
     fi
 
     log "[Servicio] Recargando configuracion de ${unit}..."
@@ -805,6 +884,12 @@ cmd_system_upgrade() {
     local pkg="${1:-}"
     export DEBIAN_FRONTEND=noninteractive
 
+    mkdir -p /run/lock
+    exec 201>/run/lock/srvctl-apt.lock
+    if ! flock -n 201; then
+        die "Existe otra operacion de actualizacion de paquetes en curso. Por favor espera."
+    fi
+
     if [ -n "$pkg" ]; then
         if [[ ! "$pkg" =~ ^[a-zA-Z0-9.+_-]+$ ]]; then
             die "Nombre de paquete invalido: ${pkg}"
@@ -853,17 +938,25 @@ cmd_system_change_password() {
     save_config
     log "         /etc/srvctl.conf actualizado con nueva contrasena maestra."
 
-    # 5. Actualizar hash en /etc/srvctl-panel.conf
+    # 5. Actualizar hash en /etc/srvctl-panel.conf de forma segura
     local panel_conf="/etc/srvctl-panel.conf"
     if [ -f "$panel_conf" ]; then
         local new_hash
         new_hash="$(SRVCTL_PANEL_PW="${new_pass}" php -r 'echo password_hash((string)getenv("SRVCTL_PANEL_PW"), PASSWORD_DEFAULT);' 2>/dev/null || true)"
         if [ -n "$new_hash" ]; then
-            if grep -q '^PANEL_PASS_HASH=' "$panel_conf"; then
-                sed -i "s|^PANEL_PASS_HASH=.*|PANEL_PASS_HASH='${new_hash}'|" "$panel_conf"
-            else
-                echo "PANEL_PASS_HASH='${new_hash}'" >> "$panel_conf"
-            fi
+            SRVCTL_TARGET_CONF="$panel_conf" SRVCTL_TARGET_HASH="$new_hash" php -r '
+                $f = (string)getenv("SRVCTL_TARGET_CONF");
+                $h = (string)getenv("SRVCTL_TARGET_HASH");
+                if (file_exists($f)) {
+                    $c = file_get_contents($f);
+                    if (preg_match("/^PANEL_PASS_HASH=/m", $c)) {
+                        $c = preg_replace("/^PANEL_PASS_HASH=.*$/m", "PANEL_PASS_HASH=" . var_export($h, true), $c);
+                    } else {
+                        $c .= "\nPANEL_PASS_HASH=" . var_export($h, true) . "\n";
+                    }
+                    file_put_contents($f, $c);
+                }
+            ' 2>/dev/null || true
             chmod 640 "$panel_conf" 2>/dev/null || true
             chown root:www-data "$panel_conf" 2>/dev/null || true
             log "         /etc/srvctl-panel.conf actualizado con nuevo hash de sesion."
@@ -927,7 +1020,7 @@ show_tui() {
         8) bash "${SRVCTL_ROOT}/modules/backup/snapshot.sh" list; read -rp "Presiona Enter..." ;;
         9)
             if (whiptail --title "Confirmar Reset" --yesno "¿Estas seguro de purgar todos los paquetes y datos?" 10 60); then
-                cmd_reset
+                cmd_reset --confirm-destroy-all
                 read -rp "Presiona Enter para continuar..."
             fi
             ;;
@@ -1013,7 +1106,7 @@ case "$subcmd" in
         esac
         ;;
     api)     cmd_api "${2:-}" ;;
-    reset)   cmd_reset ;;
+    reset)   cmd_reset "${2:-}" ;;
     "")      show_tui ;;
     *)       die "Comando desconocido: $subcmd. Usa: srvctl [deploy|status|verify|service|firewall|security|ssl|backup|db|cache|system|project|reset]" ;;
 esac
