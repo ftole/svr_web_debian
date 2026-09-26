@@ -1,5 +1,6 @@
 <?php
 $backups = panel_backups();
+$projects = panel_projects($CONFIG);
 $spec = [
 
         'title' => 'Módulo 7: Respaldos Diarios Rotativos de 7 Días y Volcados SQL',
@@ -74,10 +75,10 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
     <div class="backup-kpi-card">
         <div class="backup-kpi-head">
             <span class="backup-kpi-title">Snapshots Web Activos</span>
-            <span class="tag tag-ok"><?= e(($backups['snapshots'] ?? []).length) ?> / 7 Días</span>
+            <span class="tag tag-ok"><?= count($backups['snapshots'] ?? []) ?> / 7 Días</span>
         </div>
-        <div class="backup-kpi-val"><?= e(($backups['snapshots'] && $backups['snapshots']['length'] > 0) ? $backups['snapshots'][0].name : 'Ninguno') ?></div>
-        <div class="backup-kpi-sub">Rotación automática en <code><?= e($backups['dir']) ?>/snapshots</code></div>
+        <div class="backup-kpi-val"><?= (!empty($backups['snapshots'])) ? e($backups['snapshots'][0]['name']) : 'Ninguno' ?></div>
+        <div class="backup-kpi-sub">Rotación automática en <code><?= e($backups['dir'] ?? '/var/backups/srvctl') ?>/snapshots</code></div>
     </div>
 
     <div class="backup-kpi-card">
@@ -94,7 +95,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
             <span class="backup-kpi-title">Volcados MariaDB (.sql.gz)</span>
             <span class="badge">GZIP Nivel 9</span>
         </div>
-        <div class="backup-kpi-val"><?= e(($backups['dumps'] ?? []).length) ?> Archivos</div>
+        <div class="backup-kpi-val"><?= count($backups['dumps'] ?? []) ?> Archivos</div>
         <div class="backup-kpi-sub">Todas las BD y volcados individuales por proyecto</div>
     </div>
 
@@ -104,7 +105,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
             <span class="tag tag-ok">Activo</span>
         </div>
         <div class="backup-kpi-val">02:00 AM</div>
-        <div class="backup-kpi-sub">Programado en <code><?= e($backups['cron_file'] ?? '/etc/cron['d']/web-daily-backup') ?></code></div>
+        <div class="backup-kpi-sub">Programado en <code><?= e($backups['cron_file'] ?? '/etc/cron.d/web-daily-backup') ?></code></div>
     </div>
 </div>
 
@@ -175,7 +176,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <h2>Snapshots de Archivos Web (/var/www)</h2>
                 <div class="muted" style="margin-top: 2px;">Retención rotativa de 7 días con hardlinks rsync</div>
             </div>
-            <span class="badge"><?= e(($backups['snapshots'] ?? []).length) ?> snapshots</span>
+            <span class="badge"><?= count($backups['snapshots'] ?? []) ?> snapshots</span>
         </div>
 
         <?php if (empty($backups['snapshots']) || empty($backups['snapshots'])) { ?>
@@ -214,10 +215,10 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                             </td>
                             <td style="text-align: right;">
                                 <div style="display: inline-flex; align-items: center; gap: 6px;">
-                                    <a href="/downloads/snapshot_<?= e($snapshot['name']['replace']('.', '_')) ?>.tar.gz" download="snapshot_<?= e($snapshot['name']['replace']('.', '_')) ?>.tar.gz" class="btn btn-outline btn-sm" title="Descargar snapshot comprimido">
+                                    <a href="/downloads/snapshot_<?= e(str_replace('.', '_', $snapshot['name'])) ?>.tar.gz" download="snapshot_<?= e(str_replace('.', '_', $snapshot['name'])) ?>.tar.gz" class="btn btn-outline btn-sm" title="Descargar snapshot comprimido">
                                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                            <polyline points="7 10 12 15 17 10"></polyline>
+                                             <polyline points="7 10 12 15 17 10"></polyline>
                                             <line x1="12" y1="15" x2="12" y2="3"></line>
                                         </svg>
                                     </a>
@@ -246,7 +247,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <h2>Volcados de Bases de Datos MariaDB</h2>
                 <div class="muted" style="margin-top: 2px;">Compresión GZIP en <code><?= e($backups['dir']) ?>/database</code></div>
             </div>
-            <span class="badge"><?= e(($backups['dumps'] ?? []).length) ?> volcados</span>
+            <span class="badge"><?= count($backups['dumps'] ?? []) ?> volcados</span>
         </div>
 
         <?php if (empty($backups['dumps']) || empty($backups['dumps'])) { ?>
@@ -335,7 +336,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                     <span>Snapshot de Origen</span>
                     <select name="snapshot_name" class="input" required>
                         <?php foreach (($backups['snapshots'] ?? []) as $s) { ?>
-                            <option value="<?= e($s['name']) ?>"><?= e($s['name']) ?> (<?= e($s['date']) ?> <?= e($s['today'] ? '· Más reciente' : '') ?>)</option>
+                            <option value="<?= e($s['name']) ?>"><?= e($s['name']) ?> (<?= e($s['date']) ?><?= !empty($s['today']) ? ' · Más reciente' : '' ?>)</option>
                         <?php } ?>
                     </select>
                 </div>
