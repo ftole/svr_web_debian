@@ -1,5 +1,7 @@
 <?php
-$security = panel_security();
+$security = panel_security() ?: [];
+$security['ufw'] = $security['ufw'] ?? ['enabled' => false, 'default_incoming' => 'deny', 'default_outgoing' => 'allow', 'rules' => []];
+$security['fail2ban'] = $security['fail2ban'] ?? ['active' => false, 'banned_details' => []];
 $spec = [
 
         'title' => 'Módulo 5: Seguridad, Cortafuegos UFW y Fail2ban',
@@ -79,16 +81,16 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
             <span class="module-kpi-title">Cortafuegos UFW</span>
             <span class="tag <?= e($security['ufw']['enabled'] ? 'tag-ok' : 'tag-err') ?>"><?= e($security['ufw']['enabled'] ? 'Activo' : 'Inactivo') ?></span>
         </div>
-        <div class="module-kpi-val"><?= e(($security['ufw']['rules'] ?? []).length) ?> Reglas</div>
-        <div class="module-kpi-sub">Entrada: <code><?= e($security['ufw']['default_incoming']) ?></code> · Salida: <code>allow</code></div>
+        <div class="module-kpi-val"><?= count($security['ufw']['rules'] ?? []) ?> Reglas</div>
+        <div class="module-kpi-sub">Entrada: <code><?= e($security['ufw']['default_incoming'] ?? 'deny') ?></code> · Salida: <code>allow</code></div>
     </div>
 
     <div class="module-kpi-card">
         <div class="module-kpi-head">
             <span class="module-kpi-title">Prevención Fail2ban</span>
-            <span class="tag <?= e($security['fail2ban']['active'] ? 'tag-ok' : 'tag-err') ?>"><?= e($security['fail2ban']['active'] ? 'Activo' : 'Inactivo') ?></span>
+            <span class="tag <?= e(($security['fail2ban']['active'] ?? false) ? 'tag-ok' : 'tag-err') ?>"><?= e(($security['fail2ban']['active'] ?? false) ? 'Activo' : 'Inactivo') ?></span>
         </div>
-        <div class="module-kpi-val"><?= e(($security['fail2ban']['banned_details'] ?? []).length) ?> IPs Baneadas</div>
+        <div class="module-kpi-val"><?= count($security['fail2ban']['banned_details'] ?? []) ?> IPs Baneadas</div>
         <div class="module-kpi-sub">Jaula activa: <code>sshd</code> · Intentos máx: 5</div>
     </div>
 
@@ -139,7 +141,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <h2>Reglas de Filtrado UFW</h2>
                 <div class="muted" style="margin-top: 2px;">Tráfico entrante por puerto y subred autorizada</div>
             </div>
-            <span class="badge"><?= e(($security['ufw']['rules'] ?? []).length) ?> reglas activas</span>
+            <span class="badge"><?= count($security['ufw']['rules'] ?? []) ?> reglas activas</span>
         </div>
 
         <div style="overflow-x: auto; margin-bottom: 16px;">
@@ -211,7 +213,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <h2>Prevención de Intrusiones Fail2ban</h2>
                 <div class="muted" style="margin-top: 2px;">Jaula <code>sshd</code> activa contra ataques por fuerza bruta</div>
             </div>
-            <span class="badge"><?= e(($security['fail2ban']['banned_details'] ?? []).length) ?> bloqueos</span>
+            <span class="badge"><?= count($security['fail2ban']['banned_details'] ?? []) ?> bloqueos</span>
         </div>
 
         <?php if (empty($security['fail2ban']['banned_details']) || empty($security['fail2ban']['banned_details'])) { ?>
