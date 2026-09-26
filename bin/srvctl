@@ -71,7 +71,7 @@ cmd_deploy() {
 
     # Crear entornos iniciales prod y stg si no existen
     for p in "${PROD_SUB}" "${STG_SUB}"; do
-        cmd_project_create "$p" >/dev/null 2>&1 || true
+        ( cmd_project_create "$p" ) >/dev/null 2>&1 || true
     done
 
     log "======================================================================"
@@ -289,7 +289,7 @@ cmd_project_create() {
         die "Nombre de proyecto invalido. Usa solo letras minusculas, numeros y guiones."
     fi
 
-    local reserved_names="^(prod|stg|html|_dashboard|lost\+found|app|assets|downloads|partials|views|not_found|phpmyadmin|${DB_SUB:-webdev})$"
+    local reserved_names="^(html|_dashboard|lost\+found|app|assets|downloads|partials|views|not_found|phpmyadmin|${DB_SUB:-webdev})$"
     if [[ "$name" =~ $reserved_names ]] || [[ "$name" =~ ^_ ]]; then
         die "ACCION DENEGADA: El nombre '${name}' esta reservado por el sistema o por las rutas del Dashboard."
     fi
