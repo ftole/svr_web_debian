@@ -194,11 +194,11 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
         <p class="muted" style="font-size: 0.78rem; margin-bottom: 8px;">Cualquier petición HTTPS a estas direcciones es validada sin alertas de certificado:</p>
         <div class="cert-san-list">
             <?php foreach ($ssl['sans'] ?? [] as $san):
-                $isIp = preg_match('/^\d+\.\d+\.\d+\.\d+$/', $san);
+                $isIp = (bool)preg_match('/^\d+\.\d+\.\d+\.\d+$/', (string)$san);
             ?>
-                <div class="cert-san-chip <?= e(isIp ? 'ip' : '') ?>">
-                    <span class="san-type"><?= e(isIp ? 'IP' : 'DNS') ?></span>
-                    <span><?= e(san) ?></span>
+                <div class="cert-san-chip <?= $isIp ? 'ip' : '' ?>">
+                    <span class="san-type"><?= $isIp ? 'IP' : 'DNS' ?></span>
+                    <span><?= e($san) ?></span>
                 </div>
             <?php endforeach; ?>
         </div>
