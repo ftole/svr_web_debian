@@ -251,6 +251,14 @@ EOF
     a2dissite 000-default.conf >/dev/null 2>&1 || true
     a2ensite 00-dashboard.conf 01-prod.conf 02-stg.conf 03-webdev.conf 99-dynamic.conf >/dev/null 2>&1 || true
 
+    if command -v apache2ctl >/dev/null 2>&1; then
+        if ! apache2ctl configtest >/dev/null 2>&1; then
+            log "[ERROR] Prueba de sintaxis de Apache fallida (configtest). Servicio NO reiniciado."
+            apache2ctl configtest 2>&1 | while read -r line; do log "        $line"; done || true
+            return 1 2>/dev/null || exit 1
+        fi
+    fi
+
     systemctl restart apache2 >/dev/null 2>&1 || true
     log "        Apache 2.4 configurado con enrutamiento dinamico y VirtualHosts listos."
 }
