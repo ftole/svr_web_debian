@@ -33,46 +33,6 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
 
 <!-- 1. Certificados y Scripts Windows (.bat) con iconos clickeables -->
 <div class="download-grid">
-    <!-- Paquete Completo de la Maqueta (.zip) -->
-    <div class="download-card" style="border: 2px solid var(--primary); grid-column: 1 / -1;">
-        <div class="download-card-body">
-            <a href="/downloads/maqueta-template-srvctl.zip" download="maqueta-template-srvctl.zip" class="download-icon-btn" style="background: var(--primary-soft); color: var(--primary);" title="Descargar Maqueta Completa (.zip)">
-                <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                </svg>
-            </a>
-            <div class="download-meta">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <h3 class="download-title" style="color: var(--primary);">Paquete Completo de la Maqueta (Frontend Template + Guía Backend)</h3>
-                    <span class="badge" style="background: var(--primary); color: #fff;">ZIP Listo</span>
-                </div>
-                <span class="download-filename">maqueta-template-srvctl.zip (~158 KB)</span>
-                <p class="download-desc">
-                    Paquete completo listo para entregar al desarrollador: incluye todas las vistas EJS maquetadas, hojas de estilo CSS (Modo Claro / Modo Oscuro), scripts interactivos JS, archivos de configuración, módulos Debian 13 y el documento de especificación técnica <strong>GUIA_DESARROLLO_BACKEND.md</strong>.
-                </p>
-            </div>
-        </div>
-        <div class="download-actions" style="gap: 8px; flex-wrap: wrap;">
-            <a href="/downloads/maqueta-template-srvctl.zip" download="maqueta-template-srvctl.zip" class="btn btn-primary btn-sm" style="font-weight: 700;">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                <span>Descargar .ZIP (Windows/Mac)</span>
-            </a>
-            <a href="/downloads/maqueta-template-srvctl.tar.gz" download="maqueta-template-srvctl.tar.gz" class="btn btn-outline btn-sm" style="font-weight: 600;">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                <span>Descargar .TAR.GZ (Linux)</span>
-            </a>
-        </div>
-    </div>
     <!-- Certificado CA Raíz -->
     <div class="download-card">
         <div class="download-card-body">
