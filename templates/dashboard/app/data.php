@@ -291,7 +291,61 @@ function panel_downloads(): array
 
 function panel_security(): ?array
 {
-    return panel_srvctl_api('security');
+    $sec = panel_srvctl_api('security');
+    if (!is_array($sec)) {
+        return null;
+    }
+    if (isset($sec['ufw']['rules']) && is_array($sec['ufw']['rules'])) {
+        $parsedRules = [];
+        foreach ($sec['ufw']['rules'] as $idx => $r) {
+            if (is_array($r)) {
+                $parsedRules[] = $r;
+                continue;
+            }
+            if (is_string($r)) {
+                $line = trim($r);
+                if (preg_match('/^(?:\[\s*(\d+)\]\s+)?(\d+)(?:\/([a-z0-9]+))?(?:\s+\(v6\))?\s+([A-Z\s]+?)\s{2,}(.*?)(?:\s+#\s*(.*))?$/i', $line, $m)) {
+                    $ruleId = !empty($m[1]) ? $m[1] : (string)($idx + 1);
+                    $port = $m[2];
+                    $proto = !empty($m[3]) ? strtolower($m[3]) : 'tcp';
+                    $action = trim($m[4]);
+                    $from = trim($m[5] ?? 'Anywhere');
+                    $service = trim($m[6] ?? '');
+                    if ($service === '') {
+                        $service = match ($port) {
+                            '22' => 'SSH',
+                            '80' => 'HTTP',
+                            '443' => 'HTTPS',
+                            '445' => 'Samba SMB',
+                            '3389' => 'GNOME RDP',
+                            default => "Puerto $port",
+                        };
+                    }
+                    $parsedRules[] = [
+                        'id'      => $ruleId,
+                        'port'    => $port,
+                        'proto'   => $proto,
+                        'service' => $service,
+                        'action'  => $action,
+                        'from'    => $from,
+                        'raw'     => $line,
+                    ];
+                } else {
+                    $parsedRules[] = [
+                        'id'      => (string)($idx + 1),
+                        'port'    => 'N/D',
+                        'proto'   => '',
+                        'service' => $line,
+                        'action'  => 'ALLOW',
+                        'from'    => 'Anywhere',
+                        'raw'     => $line,
+                    ];
+                }
+            }
+        }
+        $sec['ufw']['rules'] = $parsedRules;
+    }
+    return $sec;
 }
 
 function panel_samba(): ?array
