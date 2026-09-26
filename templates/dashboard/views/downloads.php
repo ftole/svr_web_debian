@@ -202,22 +202,3 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
     </div>
 </div>
 
-<script>
-(function() {
-    var btn = document.getElementById('btn-quick-download-db');
-    var select = document.getElementById('quick-db-select');
-    if (btn && select) {
-        btn.addEventListener('click', function() {
-            var proj = select.value;
-            if (proj) {
-                var a = document.createElement('a');
-                a.href = '/?action=download&type=db&project=' + encodeURIComponent(proj);
-                a.download = proj + '_db.sql';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }
-        });
-    }
-})();
-</script>
