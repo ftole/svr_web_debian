@@ -44,6 +44,29 @@ install_php() {
         log "        Composer ya se encuentra instalado."
     fi
 
+    # Pool dedicado de PHP-FPM para el Dashboard (Aislamiento de administracion)
+    mkdir -p "/etc/php/${PHP_VER}/fpm/pool.d"
+    cat > "/etc/php/${PHP_VER}/fpm/pool.d/dashboard.conf" <<EOF
+[dashboard]
+user = www-data
+group = www-data
+listen = /run/php/php${PHP_VER}-fpm-dashboard.sock
+listen.owner = www-data
+listen.group = www-data
+listen.mode = 0660
+
+pm = dynamic
+pm.max_children = 5
+pm.start_servers = 2
+pm.min_spare_servers = 1
+pm.max_spare_servers = 3
+pm.max_requests = 500
+
+php_admin_value[memory_limit] = 256M
+php_admin_value[max_execution_time] = 120
+EOF
+    systemctl restart "php${PHP_VER}-fpm" >/dev/null 2>&1 || true
+
     log "        PHP ${PHP_VER} FPM y Composer configurados correctamente."
 }
 
