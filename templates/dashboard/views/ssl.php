@@ -1,5 +1,6 @@
 <?php
 $ssl = panel_ssl();
+$samba = panel_samba() ?? ['config_valid' => true, 'sessions' => []];
 $spec = [
     'title' => 'Módulo 6: Certificados SSL Comodín y Servidor Samba SMBv3',
     'endpoints' => [
@@ -35,7 +36,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
         <div class="cert-banner-text">
             <h2>Certificados SSL / TLS y Cifrado HTTPS</h2>
             <p>
-                Infraestructura de Clave Pública (PKI) local con Autoridad Certificadora Raíz privada (4096-bit) y certificado comodín SAN <code>*.<?= e($CONFIG[\'BASE_DOMAIN\']) ?></code>.
+                Infraestructura de Clave Pública (PKI) local con Autoridad Certificadora Raíz privada (4096-bit) y certificado comodín SAN <code>*.<?= e($CONFIG['BASE_DOMAIN']) ?></code>.
             </p>
         </div>
     </div>
@@ -75,37 +76,37 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
             <span class="cert-kpi-title">Protocolo & Cifrado</span>
             <span class="tag tag-ok">Seguro</span>
         </div>
-        <div class="cert-kpi-val"><?= e($ssl[\'tls_protocol\'] ?? 'TLSv1.3') ?></div>
-        <div class="cert-kpi-sub"><?= e($ssl[\'cipher_suite\'] ?? 'TLS_AES_256_GCM_SHA384') ?> · HSTS activo</div>
+        <div class="cert-kpi-val"><?= e($ssl['tls_protocol'] ?? 'TLSv1.3') ?></div>
+        <div class="cert-kpi-sub"><?= e($ssl['cipher_suite'] ?? 'TLS_AES_256_GCM_SHA384') ?> · HSTS activo</div>
     </div>
 
     <div class="cert-kpi-card">
         <div class="cert-kpi-head">
             <span class="cert-kpi-title">Cobertura Comodín (SAN)</span>
-            <span class="tag tag-ok"><?= e(($ssl[\'sans\'] ?? []).length) ?> Entradas</span>
+            <span class="tag tag-ok"><?= e(count($ssl['sans'] ?? [])) ?> Entradas</span>
         </div>
-        <div class="cert-kpi-val"><code>*.<?= e($CONFIG[\'BASE_DOMAIN\']) ?></code></div>
+        <div class="cert-kpi-val"><code>*.<?= e($CONFIG['BASE_DOMAIN']) ?></code></div>
         <div class="cert-kpi-sub">Dominio base, subdominios, phpMyAdmin e IP directa</div>
     </div>
 
     <div class="cert-kpi-card">
         <div class="cert-kpi-head">
             <span class="cert-kpi-title">Autoridad CA Raíz</span>
-            <span class="tag <?= e($ssl[\'ca_exists\'] ? 'tag-ok' : 'tag-err') ?>"><?= e($ssl[\'ca_exists\'] ? 'Presente' : 'Ausente') ?></span>
+            <span class="tag <?= e($ssl['ca_exists'] ? 'tag-ok' : 'tag-err') ?>"><?= e($ssl['ca_exists'] ? 'Presente' : 'Ausente') ?></span>
         </div>
-        <div class="cert-kpi-val"><?= e($ssl[\'ca_key_length\'] ?? 'RSA 4096-bit') ?></div>
-        <div class="cert-kpi-sub">Válida por <?= e($ssl[\'ca_valid_to\'] ?? '10 años') ?> (Local-RootCA)</div>
+        <div class="cert-kpi-val"><?= e($ssl['ca_key_length'] ?? 'RSA 4096-bit') ?></div>
+        <div class="cert-kpi-sub">Válida por <?= e($ssl['ca_valid_to'] ?? '10 años') ?> (Local-RootCA)</div>
     </div>
 
     <div class="cert-kpi-card">
         <div class="cert-kpi-head">
             <span class="cert-kpi-title">Vigencia del Certificado</span>
-            <span class="tag <?= e(($ssl[\'exists\'] && $ssl[\'days_left\'] > 0) ? 'tag-ok' : 'tag-err') ?>">
-                <?= e($ssl[\'days_left\']) ?> Días
+            <span class="tag <?= e(($ssl['exists'] && $ssl['days_left'] > 0) ? 'tag-ok' : 'tag-err') ?>">
+                <?= e($ssl['days_left']) ?> Días
             </span>
         </div>
-        <div class="cert-kpi-val">Hasta <?= e($ssl[\'valid_to\']) ?></div>
-        <div class="cert-kpi-sub">Emitido: <?= e($ssl[\'valid_from\']) ?> · Renovación disponible</div>
+        <div class="cert-kpi-val">Hasta <?= e($ssl['valid_to']) ?></div>
+        <div class="cert-kpi-sub">Emitido: <?= e($ssl['valid_from']) ?> · Renovación disponible</div>
     </div>
 </div>
 
@@ -115,7 +116,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
         <div class="card-head">
             <div>
                 <h2>Certificado SSL Regenerado Exitosamente</h2>
-                <div class="muted" style="margin-top: 4px;">Ejecución registrada el <?= e($sslResult[\'timestamp\']) ?></div>
+                <div class="muted" style="margin-top: 4px;">Ejecución registrada el <?= e($sslResult['timestamp']) ?></div>
             </div>
             <form method="POST" action="/" style="display:inline;">
                 <input type="hidden" name="action" value="clear_ssl_results">
@@ -124,7 +125,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <button type="submit" class="btn btn-outline btn-sm">Cerrar</button>
             </form>
         </div>
-        <pre class="terminal"><?= e($sslResult[\'output\']) ?></pre>
+        <pre class="terminal"><?= e($sslResult['output']) ?></pre>
     </div>
 <?php endif; ?>
 
@@ -132,8 +133,8 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
     <div class="card" style="margin-bottom: 24px; border-left: 4px solid var(--primary);">
         <div class="card-head">
             <div>
-                <h2>Auditoría de Cifrado y Seguridad TLS (Calificación <?= e($sslVerify[\'score\']) ?>)</h2>
-                <div class="muted" style="margin-top: 4px;">Comprobación de suites criptográficas y cadena de certificación realizada el <?= e($sslVerify[\'timestamp\']) ?></div>
+                <h2>Auditoría de Cifrado y Seguridad TLS (Calificación <?= e($sslVerify['score']) ?>)</h2>
+                <div class="muted" style="margin-top: 4px;">Comprobación de suites criptográficas y cadena de certificación realizada el <?= e($sslVerify['timestamp']) ?></div>
             </div>
             <form method="POST" action="/" style="display:inline;">
                 <input type="hidden" name="action" value="clear_ssl_results">
@@ -142,7 +143,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <button type="submit" class="btn btn-outline btn-sm">Limpiar</button>
             </form>
         </div>
-        <pre class="terminal"><?= e($sslVerify[\'output\']) ?></pre>
+        <pre class="terminal"><?= e($sslVerify['output']) ?></pre>
     </div>
 <?php endif; ?>
 
@@ -161,31 +162,31 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
         <dl class="kv" style="margin-bottom: 16px;">
             <div>
                 <dt>Titular (CN)</dt>
-                <dd><strong><code><?= e($ssl[\'subject\']) ?></code></strong></dd>
+                <dd><strong><code><?= e($ssl['subject']) ?></code></strong></dd>
             </div>
             <div>
                 <dt>Emisor (Issuer)</dt>
-                <dd><?= e($ssl[\'issuer\']) ?></dd>
+                <dd><?= e($ssl['issuer']) ?></dd>
             </div>
             <div>
                 <dt>Criptografía / Clave</dt>
-                <dd><?= e($ssl[\'signature_algorithm\'] ?? 'SHA256withRSA') ?> · <?= e($ssl[\'key_length\'] ?? '2048-bit RSA') ?></dd>
+                <dd><?= e($ssl['signature_algorithm'] ?? 'SHA256withRSA') ?> · <?= e($ssl['key_length'] ?? '2048-bit RSA') ?></dd>
             </div>
             <div>
                 <dt>Número de Serie</dt>
-                <dd><code><?= e($ssl[\'serial_number\'] ?? '04:8F:2A:9C:E1:5D:80:4B') ?></code></dd>
+                <dd><code><?= e($ssl['serial_number'] ?? '04:8F:2A:9C:E1:5D:80:4B') ?></code></dd>
             </div>
             <div>
                 <dt>Huella Digital (SHA256)</dt>
-                <dd><code style="font-size: 0.72rem; word-break: break-all;"><?= e($ssl[\'fingerprint_sha256\'] ?? '8F:3A:41:B9:62:0E:55:D1:CA:73:90:38:D4:57:EC:81:49:7F:C2:59:E7:B0:1D:33:66:9A:F8:7D:EE:24:60:1C') ?></code></dd>
+                <dd><code style="font-size: 0.72rem; word-break: break-all;"><?= e($ssl['fingerprint_sha256'] ?? '8F:3A:41:B9:62:0E:55:D1:CA:73:90:38:D4:57:EC:81:49:7F:C2:59:E7:B0:1D:33:66:9A:F8:7D:EE:24:60:1C') ?></code></dd>
             </div>
             <div>
                 <dt>Ruta en Servidor</dt>
-                <dd><code><?= e($ssl[\'cert_path\'] ?? '/etc/ssl/localcerts/webserver.crt') ?></code> (Modo 0644)</dd>
+                <dd><code><?= e($ssl['cert_path'] ?? '/etc/ssl/localcerts/webserver.crt') ?></code> (Modo 0644)</dd>
             </div>
             <div>
                 <dt>Llave Privada</dt>
-                <dd><code><?= e($ssl[\'key_path\'] ?? '/etc/ssl/localcerts/webserver.key') ?></code> (Modo 0400, protegida)</dd>
+                <dd><code><?= e($ssl['key_path'] ?? '/etc/ssl/localcerts/webserver.key') ?></code> (Modo 0400, protegida)</dd>
             </div>
         </dl>
 
@@ -222,21 +223,21 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 <h2>Autoridad Certificadora Raíz (rootCA.crt)</h2>
                 <div class="muted" style="margin-top: 2px;">Entidad emisora de confianza para los clientes de la red</div>
             </div>
-            <span class="tag <?= e($ssl[\'ca_exists\'] ? 'tag-ok' : 'tag-err') ?>"><?= e($ssl[\'ca_exists\'] ? 'Raíz Confiable' : 'Ausente') ?></span>
+            <span class="tag <?= e($ssl['ca_exists'] ? 'tag-ok' : 'tag-err') ?>"><?= e($ssl['ca_exists'] ? 'Raíz Confiable' : 'Ausente') ?></span>
         </div>
 
         <dl class="kv" style="margin-bottom: 16px;">
             <div>
                 <dt>Nombre del Emisor (CN)</dt>
-                <dd><strong><?= e($ssl[\'issuer\']) ?></strong></dd>
+                <dd><strong><?= e($ssl['issuer']) ?></strong></dd>
             </div>
             <div>
                 <dt>Clave Privada Raíz</dt>
-                <dd><?= e($ssl[\'ca_key_length\'] ?? 'RSA 4096-bit') ?> (umask 077, modo 0400)</dd>
+                <dd><?= e($ssl['ca_key_length'] ?? 'RSA 4096-bit') ?> (umask 077, modo 0400)</dd>
             </div>
             <div>
                 <dt>Vigencia de la CA</dt>
-                <dd>10 Años (Vence en <?= e($ssl[\'ca_valid_to\'] ?? '2036') ?>)</dd>
+                <dd>10 Años (Vence en <?= e($ssl['ca_valid_to'] ?? '2036') ?>)</dd>
             </div>
             <div>
                 <dt>Ubicación Pública</dt>
@@ -244,7 +245,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
             </div>
             <div>
                 <dt>Ubicación Segura</dt>
-                <dd><code><?= e($ssl[\'ca_path\'] ?? '/etc/ssl/localcerts/rootCA.crt') ?></code></dd>
+                <dd><code><?= e($ssl['ca_path'] ?? '/etc/ssl/localcerts/rootCA.crt') ?></code></dd>
             </div>
         </dl>
 
@@ -327,7 +328,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
             <ol class="cert-trust-steps">
                 <li>Copia el archivo: <code>sudo cp rootCA.crt /usr/local/share/ca-certificates/srvctl.crt</code></li>
                 <li>Actualiza el almacén del sistema: <code>sudo update-ca-certificates</code></li>
-                <li>Verifica con <code>curl -I https://<?= e($CONFIG[\'BASE_DOMAIN\']) ?></code> sin banderas <code>-k</code>.</li>
+                <li>Verifica con <code>curl -I https://<?= e($CONFIG['BASE_DOMAIN']) ?></code> sin banderas <code>-k</code>.</li>
             </ol>
         </div>
     </div>
@@ -340,13 +341,13 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
             <h2>Integración de Red: Recurso Compartido Samba SMBv3</h2>
             <div class="muted" style="margin-top: 2px;">Acceso de red local autenticado al directorio maestro <code>/var/www</code></div>
         </div>
-        <span class="tag <?= e($samba[\'config_valid\'] ? 'tag-ok' : 'tag-err') ?>"><?= e($samba[\'config_valid\'] ? 'SMBv3 Operativo' : 'Revisar') ?></span>
+        <span class="tag <?= e($samba['config_valid'] ? 'tag-ok' : 'tag-err') ?>"><?= e($samba['config_valid'] ? 'SMBv3 Operativo' : 'Revisar') ?></span>
     </div>
 
     <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-bottom: 16px;">
         <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 18px; flex: 1; min-width: 260px;">
             <div style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 4px;">Ruta UNC de Red (Windows / Mac)</div>
-            <code style="font-size: 1rem; color: var(--primary); font-weight: 700;">\\<?= e($CONFIG[\'SERVER_IP\']) ?>\proyectos</code>
+            <code style="font-size: 1rem; color: var(--primary); font-weight: 700;">\\<?= e($CONFIG['SERVER_IP']) ?>\proyectos</code>
         </div>
         <div style="background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 18px; flex: 1; min-width: 260px;">
             <div style="font-size: 0.78rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 4px;">Permisos del Sistema</div>
@@ -368,11 +369,11 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                 </tr>
             </thead>
             <tbody>
-            <?php foreach (['sessions'] ?? [] as ): ?>
+            <?php foreach ($samba['sessions'] ?? [] as $session): ?>
                 <tr>
-                    <td><strong><code><?= e($session[\'user\']) ?></code></strong></td>
-                    <td><code><?= e($session[\'machine\']) ?></code></td>
-                    <td><span class="badge" style="background: var(--teal-soft); color: var(--teal); font-weight: 700;"><?= e($session[\'protocol\']) ?></span></td>
+                    <td><strong><code><?= e($session['user']) ?></code></strong></td>
+                    <td><code><?= e($session['machine']) ?></code></td>
+                    <td><span class="badge" style="background: var(--teal-soft); color: var(--teal); font-weight: 700;"><?= e($session['protocol']) ?></span></td>
                     <td><span class="tag tag-ok">Conectado</span></td>
                 </tr>
             <?php endforeach; ?>
