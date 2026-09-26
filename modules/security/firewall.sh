@@ -9,6 +9,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [ -f "${SCRIPT_DIR}/../../core/logger.sh" ] && . "${SCRIPT_DIR}/../../core/logger.sh"
 # shellcheck source=/dev/null
 [ -f "${SCRIPT_DIR}/../../core/validator.sh" ] && . "${SCRIPT_DIR}/../../core/validator.sh"
+# shellcheck source=/dev/null
+[ -f "${SCRIPT_DIR}/../../core/config.sh" ] && . "${SCRIPT_DIR}/../../core/config.sh"
 
 apply_firewall() {
     validate_root
@@ -68,6 +70,7 @@ toggle_firewall() {
     case "$target_state" in
         on|enable)
             log "[Seguridad] Activando cortafuegos UFW..."
+            ufw allow 22/tcp comment 'SSH' >/dev/null 2>&1 || true
             ufw --force enable
             systemctl enable --now ufw >/dev/null 2>&1 || true
             log "            Cortafuegos UFW activado exitosamente."
@@ -126,7 +129,17 @@ delete_rule() {
     local target="$1"
     [ -n "$target" ] || die "Debes especificar el numero de regla o puerto a eliminar. Ej: srvctl firewall delete 3 o srvctl firewall delete 8080/tcp"
 
+    local vital_regex='^(22|80|443|445)(/(tcp|udp))?$'
+    if [[ "$target" =~ $vital_regex ]]; then
+        die "ACCION DENEGADA: El puerto ${target} es vital para la infraestructura del servidor y no puede eliminarse."
+    fi
+
     if [[ "$target" =~ ^[0-9]+$ ]] && [ "$target" -lt 1000 ]; then
+        local rule_line
+        rule_line="$(ufw status numbered 2>/dev/null | grep -E "^\\[[[:space:]]*${target}\\]" || true)"
+        if [ -n "$rule_line" ] && echo "$rule_line" | grep -qE '[[:space:]](22|80|443|445)(/(tcp|udp))?[[:space:]]'; then
+            die "ACCION DENEGADA: La regla ${target} protege un puerto vital del sistema (${rule_line}) y no puede eliminarse."
+        fi
         log "[Seguridad] Eliminando regla numero ${target} de UFW..."
         echo "y" | ufw delete "$target" || ufw --force delete "$target"
     elif [[ "$target" =~ ^[0-9]+(/[a-z]+)?$ ]]; then
@@ -140,11 +153,37 @@ delete_rule() {
 
 ban_ip() {
     validate_root
+    [ -f "${SCRIPT_DIR}/../../core/config.sh" ] && load_config
     local ip="$1"
     [ -n "$ip" ] || die "Debes especificar la direccion IP a banear. Ej: srvctl security ban 192.168.1.100"
     if ! validate_ipv4 "$ip"; then
         die "Direccion IPv4 invalida: ${ip}"
     fi
+
+    if [[ "$ip" =~ ^127\. ]] || [ "$ip" = "::1" ]; then
+        die "ACCION DENEGADA: No se permite banear direcciones loopback (${ip})."
+    fi
+
+    if [ -n "${SERVER_IP:-}" ] && [ "$ip" = "$SERVER_IP" ]; then
+        die "ACCION DENEGADA: No se permite banear la direccion IP del propio servidor (${ip})."
+    fi
+
+    local current_client_ip=""
+    if [ -n "${SSH_CLIENT:-}" ]; then
+        current_client_ip="$(echo "$SSH_CLIENT" | awk '{print $1}')"
+    elif [ -n "${SSH_CONNECTION:-}" ]; then
+        current_client_ip="$(echo "$SSH_CONNECTION" | awk '{print $1}')"
+    fi
+    if [ -n "$current_client_ip" ] && [ "$ip" = "$current_client_ip" ]; then
+        die "ACCION DENEGADA: No se permite banear la IP de tu propia sesion activa (${ip})."
+    fi
+
+    local gw_ip=""
+    gw_ip="$(ip route show default 2>/dev/null | awk '/default via/ {print $3; exit}' || true)"
+    if [ -n "$gw_ip" ] && [ "$ip" = "$gw_ip" ]; then
+        die "ACCION DENEGADA: No se permite banear la puerta de enlace de red (${ip})."
+    fi
+
     log "[Seguridad] Baneando IP ${ip} en Fail2ban (jaula sshd)..."
     fail2ban-client set sshd banip "$ip"
     log "            IP ${ip} baneada exitosamente."
