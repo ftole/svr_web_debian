@@ -2,6 +2,7 @@
 $security = panel_security() ?: [];
 $security['ufw'] = $security['ufw'] ?? ['enabled' => false, 'default_incoming' => 'deny', 'default_outgoing' => 'allow', 'rules' => []];
 $security['fail2ban'] = $security['fail2ban'] ?? ['active' => false, 'banned_details' => []];
+$security['ssh'] = $security['ssh'] ?? ['port' => 22, 'permit_root_login' => 'prohibit-password', 'max_auth_tries' => 3, 'kex' => 'curve25519-sha256', 'ciphers' => 'chacha20-poly1305,aes256-gcm'];
 $spec = [
 
         'title' => 'Módulo 5: Seguridad, Cortafuegos UFW y Fail2ban',
