@@ -488,7 +488,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
         if (isPaused) return;
 
         var token = window.SRVCTL_TOKEN || (window.localStorage && localStorage.getItem('srvctl_token')) || '';
-        var url = '/api/diagnostics/logs?since=' + lastSeenId + (token ? '&token=' + encodeURIComponent(token) : '');
+        var url = '/?action=live_logs&since=' + lastSeenId + (token ? '&token=' + encodeURIComponent(token) : '');
 
         fetch(url, { headers: { 'Accept': 'application/json' }, cache: 'no-store' })
             .then(function(res) {
