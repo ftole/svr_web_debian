@@ -11,7 +11,22 @@ function panel_srvctl(array $args, int $timeout = 0): array
     $cmd_str = implode(' ', $args);
     // Ejecutar pasando la variable por entorno al wrapper (usando env)
     $command = 'env SRVCTL_CMD=' . escapeshellarg($cmd_str) . ' sudo /usr/local/bin/srvctl-web-wrapper';
-    return panel_run($command, $timeout);
+    [$code, $output] = panel_run($command, $timeout);
+
+    // Fallback si el wrapper no esta disponible en el entorno
+    if ($code === 127 || ($code === 1 && str_contains($output, 'srvctl-web-wrapper: not found'))) {
+        if (file_exists('/usr/local/bin/srvctl')) {
+            $directCmd = 'sudo /usr/local/bin/srvctl ' . implode(' ', array_map('escapeshellarg', $args));
+            return panel_run($directCmd, $timeout);
+        }
+        $repoBin = dirname(__DIR__, 3) . '/bin/srvctl';
+        if (file_exists($repoBin)) {
+            $directCmd = escapeshellarg($repoBin) . ' ' . implode(' ', array_map('escapeshellarg', $args));
+            return panel_run($directCmd, $timeout);
+        }
+    }
+
+    return [$code, $output];
 }
 
 function panel_srvctl_api(string $section): ?array
