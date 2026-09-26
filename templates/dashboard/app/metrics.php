@@ -231,6 +231,9 @@ function panel_metrics_mariadb(array $conf): array
     if (!is_array($data) || !isset($data['status'])) {
         return ['ok' => false];
     }
+    if (isset($data['ok']) && $data['ok'] === false) {
+        return ['ok' => false];
+    }
     return [
         'ok'      => true,
         'threads' => (int)($data['status']['threads'] ?? 0),
