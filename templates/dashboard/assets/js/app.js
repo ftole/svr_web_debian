@@ -267,48 +267,8 @@
         bindPasswordToggles();
         bindThemeToggle();
         bindDevNotesToggle();
-        bindDownloads();
     }
     window.panelBind = panelBind;
-
-    function bindDownloads() {
-        document.querySelectorAll('a[href*="maqueta-template-srvctl"]').forEach(function(link) {
-            if (link.getAttribute('data-download-bound')) { return; }
-            link.setAttribute('data-download-bound', '1');
-            link.addEventListener('click', function(e) {
-                var url = link.getAttribute('href');
-                var filename = link.getAttribute('download') || 'maqueta-template-srvctl.zip';
-                e.preventDefault();
-                showToast('info', 'Preparando y descargando paquete (' + filename + ')...');
-                fetch(url, { cache: 'no-store' })
-                    .then(function(res) {
-                        if (!res.ok) throw new Error('Servidor retornó HTTP ' + res.status);
-                        return res.blob();
-                    })
-                    .then(function(blob) {
-                        if (blob.size < 5000) {
-                            throw new Error('El archivo descargado está incompleto (' + blob.size + ' bytes).');
-                        }
-                        var blobUrl = window.URL.createObjectURL(blob);
-                        var tempLink = document.createElement('a');
-                        tempLink.style.display = 'none';
-                        tempLink.href = blobUrl;
-                        tempLink.download = filename;
-                        document.body.appendChild(tempLink);
-                        tempLink.click();
-                        setTimeout(function() {
-                            document.body.removeChild(tempLink);
-                            window.URL.revokeObjectURL(blobUrl);
-                        }, 2000);
-                        showToast('success', 'Paquete descargado correctamente (' + Math.round(blob.size / 1024) + ' KB). Listo para descomprimir.');
-                    })
-                    .catch(function(err) {
-                        showToast('warn', 'Descargando directo: ' + err.message);
-                        window.location.href = url;
-                    });
-            });
-        });
-    }
 
     function bindDevNotesToggle() {
         var btn = document.getElementById('dev-notes-toggle');
