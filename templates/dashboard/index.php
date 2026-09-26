@@ -23,6 +23,46 @@ if (($_GET['action'] ?? '') === 'metrics') {
     exit;
 }
 
+if (($_GET['action'] ?? '') === 'server_status') {
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store');
+    if (!panel_is_admin()) {
+        http_response_code(403);
+        echo '{"error":"unauthorized"}';
+        exit;
+    }
+    panel_touch();
+    $fast = panel_metrics_fast();
+    $overview = panel_overview($CONFIG);
+    $payload = [
+        'server_ip'        => $CONFIG['SERVER_IP'],
+        'base_domain'      => $CONFIG['BASE_DOMAIN'],
+        'hostname'         => gethostname() ?: 'debian13-server',
+        'kernel'           => function_exists('shell_exec') ? trim((string)shell_exec('uname -r')) : 'Linux 6.12',
+        'uptime_formatted' => $overview['uptime_text'] ?? '0d 0h 0m',
+        'cpu'              => [
+            'usage_percent' => $fast['cpu']['total'] ?? 0,
+            'cores'         => $fast['cpu']['cores'] ?? [],
+            'load_avg'      => $fast['load'] ?? [0, 0, 0],
+        ],
+        'ram'              => [
+            'usage_percent'   => $fast['mem']['percent'] ?? 0,
+            'used_formatted'  => panel_format_bytes($fast['mem']['used'] ?? 0),
+            'total_formatted' => panel_format_bytes($fast['mem']['total'] ?? 0),
+            'free_formatted'  => panel_format_bytes(max(0, ($fast['mem']['total'] ?? 0) - ($fast['mem']['used'] ?? 0))),
+        ],
+        'disk'             => [
+            'usage_percent'   => $fast['disk']['percent'] ?? 0,
+            'used_formatted'  => panel_format_bytes($fast['disk']['used'] ?? 0),
+            'total_formatted' => panel_format_bytes($fast['disk']['total'] ?? 0),
+            'free_formatted'  => panel_format_bytes(max(0, ($fast['disk']['total'] ?? 0) - ($fast['disk']['used'] ?? 0))),
+        ],
+        'timestamp'        => date('H:i:s'),
+    ];
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
+    exit;
+}
+
 if (($_GET['action'] ?? '') === 'section') {
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
