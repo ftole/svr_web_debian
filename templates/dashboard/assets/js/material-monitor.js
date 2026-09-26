@@ -6,9 +6,17 @@
 (function () {
     'use strict';
 
+    var activeMonitorTimer = null;
+
     function initMaterialMonitor() {
         var container = document.getElementById('material-status-monitor');
-        if (!container) return;
+        if (!container) {
+            if (activeMonitorTimer) {
+                clearInterval(activeMonitorTimer);
+                activeMonitorTimer = null;
+            }
+            return;
+        }
 
         // Limpiar contenido previo si re-montamos
         container.innerHTML = '';
@@ -298,6 +306,10 @@
 
         // Sondeo del endpoint /api/server-status
         function pollServer() {
+            if (!document.getElementById('material-status-monitor')) {
+                stopPolling();
+                return;
+            }
             var token = window.SRVCTL_TOKEN || (window.localStorage && localStorage.getItem('srvctl_token')) || '';
             var start = performance.now();
             var url = '?action=server_status' + (token ? '&token=' + encodeURIComponent(token) : '');
@@ -397,14 +409,16 @@
         function startPolling() {
             stopPolling();
             pollServer();
-            state.timer = setInterval(pollServer, state.interval_ms);
+            activeMonitorTimer = setInterval(pollServer, state.interval_ms);
+            state.timer = activeMonitorTimer;
         }
 
         function stopPolling() {
-            if (state.timer) {
-                clearInterval(state.timer);
-                state.timer = null;
+            if (activeMonitorTimer) {
+                clearInterval(activeMonitorTimer);
+                activeMonitorTimer = null;
             }
+            state.timer = null;
         }
 
         // Configurar botones de intervalo
@@ -449,6 +463,24 @@
     document.addEventListener('section:loaded', function (e) {
         if (e.detail && e.detail.page === 'overview') {
             setTimeout(initMaterialMonitor, 40);
+        } else {
+            if (activeMonitorTimer) {
+                clearInterval(activeMonitorTimer);
+                activeMonitorTimer = null;
+            }
+        }
+    });
+
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) {
+            if (activeMonitorTimer) {
+                clearInterval(activeMonitorTimer);
+                activeMonitorTimer = null;
+            }
+        } else {
+            if (document.getElementById('material-status-monitor')) {
+                initMaterialMonitor();
+            }
         }
     });
 })();
