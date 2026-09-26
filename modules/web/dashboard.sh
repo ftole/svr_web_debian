@@ -84,25 +84,99 @@ set -euo pipefail
 # Wrapper seguro para invocar srvctl desde PHP
 read -r ACTION TARGET EXTRA <<< "${SRVCTL_CMD:-}"
 case "$ACTION" in
+    "service")
+        if [ "$TARGET" = "restart" ] && [[ "$EXTRA" =~ ^(apache2|php[0-9.]*-fpm|mariadb|redis-server|smbd|ufw|fail2ban)$ ]]; then
+            exec /usr/local/bin/srvctl service restart "$EXTRA"
+        elif [ "$TARGET" = "reload" ] && [[ "$EXTRA" =~ ^(apache2|php[0-9.]*-fpm)$ ]]; then
+            exec /usr/local/bin/srvctl service reload "$EXTRA"
+        fi
+        ;;
+    "firewall")
+        if [ "$TARGET" = "toggle" ] && { [ -z "$EXTRA" ] || [[ "$EXTRA" =~ ^(on|off)$ ]]; }; then
+            # shellcheck disable=SC2086
+            exec /usr/local/bin/srvctl firewall toggle $EXTRA
+        elif [ "$TARGET" = "allow" ] && [[ "$EXTRA" =~ ^[0-9]+(/[a-z]+)?( +[a-zA-Z0-9_.-]+)*$ ]]; then
+            # shellcheck disable=SC2086
+            exec /usr/local/bin/srvctl firewall allow $EXTRA
+        elif [ "$TARGET" = "delete" ] && [[ "$EXTRA" =~ ^[0-9]+(/[a-z]+)?$ ]]; then
+            exec /usr/local/bin/srvctl firewall delete "$EXTRA"
+        fi
+        ;;
+    "security")
+        if [ "$TARGET" = "ban" ] && [[ "$EXTRA" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+            exec /usr/local/bin/srvctl security ban "$EXTRA"
+        elif [ "$TARGET" = "unban" ] && [[ "$EXTRA" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+            exec /usr/local/bin/srvctl security unban "$EXTRA"
+        elif [ "$TARGET" = "scan" ] && [ -z "$EXTRA" ]; then
+            exec /usr/local/bin/srvctl security scan
+        fi
+        ;;
+    "ssl")
+        if [ "$TARGET" = "renew" ] && [ -z "$EXTRA" ]; then
+            exec /usr/local/bin/srvctl ssl renew
+        fi
+        ;;
+    "backup")
+        if [ "$TARGET" = "run" ] && [ -z "$EXTRA" ]; then
+            exec /usr/local/bin/srvctl backup run
+        elif [ "$TARGET" = "list" ] && [ -z "$EXTRA" ]; then
+            exec /usr/local/bin/srvctl backup list
+        elif [ "$TARGET" = "verify" ] && [ -z "$EXTRA" ]; then
+            exec /usr/local/bin/srvctl backup verify
+        elif [ "$TARGET" = "rollback" ] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_\.-]+$ ]]; then
+            exec /usr/local/bin/srvctl backup rollback "$EXTRA"
+        elif [ "$TARGET" = "rollback-project" ] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_-]+ +[a-zA-Z0-9_\.-]+$ ]]; then
+            # shellcheck disable=SC2086
+            exec /usr/local/bin/srvctl backup rollback-project $EXTRA
+        elif [ "$TARGET" = "restore-db" ] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_\.-]+\.sql(\.gz)?$ ]]; then
+            exec /usr/local/bin/srvctl backup restore-db "$EXTRA"
+        fi
+        ;;
+    "db")
+        if [ "$TARGET" = "create" ] && [[ "$EXTRA" =~ ^[a-z0-9_]{1,64} +[a-z0-9_]{1,32}( +[a-zA-Z0-9_@#$%^&*!.-]+)?$ ]]; then
+            # shellcheck disable=SC2086
+            exec /usr/local/bin/srvctl db create $EXTRA
+        elif [ "$TARGET" = "delete" ] && [[ "$EXTRA" =~ ^[a-z0-9_]{1,64}$ ]]; then
+            exec /usr/local/bin/srvctl db delete "$EXTRA"
+        elif [ "$TARGET" = "optimize" ] && [ -z "$EXTRA" ]; then
+            exec /usr/local/bin/srvctl db optimize
+        fi
+        ;;
+    "cache")
+        if [ "$TARGET" = "flush-redis" ] && [ -z "$EXTRA" ]; then
+            exec /usr/local/bin/srvctl cache flush-redis
+        fi
+        ;;
+    "system")
+        if [ "$TARGET" = "check-updates" ] && [ -z "$EXTRA" ]; then
+            exec /usr/local/bin/srvctl system check-updates
+        elif [ "$TARGET" = "upgrade" ]; then
+            if [ -z "$EXTRA" ]; then
+                exec /usr/local/bin/srvctl system upgrade
+            elif [[ "$EXTRA" =~ ^[a-zA-Z0-9.+_-]+$ ]]; then
+                exec /usr/local/bin/srvctl system upgrade "$EXTRA"
+            fi
+        elif [ "$TARGET" = "change-password" ] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_@#$%^&*!.-]{6,128}$ ]]; then
+            exec /usr/local/bin/srvctl system change-password "$EXTRA"
+        fi
+        ;;
     "project")
         if [[ "$TARGET" =~ ^(create|delete|db)$ ]] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_\ -]+$ ]]; then
             # Se permite la expansión de $EXTRA (sin comillas) porque ya fue validado por una regex estricta
             # Esto permite pasar comandos como: project db <proyecto> <bd_personalizada>
+            # shellcheck disable=SC2086
             exec /usr/local/bin/srvctl project "$TARGET" $EXTRA
-        fi
-        ;;
-    "backup")
-        if [ "$TARGET" = "run" ]; then
-            exec /usr/local/bin/srvctl backup run
-        elif [ "$TARGET" = "rollback" ] && [[ "$EXTRA" =~ ^[a-zA-Z0-9_\.-]+$ ]]; then
-            exec /usr/local/bin/srvctl backup rollback "$EXTRA"
+        elif [ "$TARGET" = "list" ] && [ -z "$EXTRA" ]; then
+            exec /usr/local/bin/srvctl project list
         fi
         ;;
     "verify")
-        exec /usr/local/bin/srvctl verify
+        if [ -z "$TARGET" ] && [ -z "$EXTRA" ]; then
+            exec /usr/local/bin/srvctl verify
+        fi
         ;;
     "api")
-        if [[ "$TARGET" =~ ^(security|samba|database)$ ]]; then
+        if [[ "$TARGET" =~ ^(security|samba|database)$ ]] && [ -z "$EXTRA" ]; then
             exec /usr/local/bin/srvctl api "$TARGET"
         fi
         ;;
