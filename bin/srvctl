@@ -588,8 +588,12 @@ api_samba() {
 
 api_database() {
     validate_root
+    if ! mariadb -e "SELECT 1;" > /dev/null 2>&1; then
+        printf '{"ok":false,"error":"MariaDB no responde","databases":[],"users":[],"status":{"threads":0,"running":0,"qps":0}}\n'
+        exit 1
+    fi
     local first=1 name size tables is_sys
-    printf '{"databases":['
+    printf '{"ok":true,"databases":['
     while IFS=$'\t' read -r name size tables; do
         [ -z "$name" ] && continue
         [ "$first" -eq 1 ] || printf ','
