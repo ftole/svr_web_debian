@@ -35,6 +35,22 @@ install_redis() {
     log "        Redis Server activo y enlazado a PHP ${PHP_VER}."
 }
 
+flush_redis() {
+    validate_root
+    log "[Cache] Purgando toda la memoria de Redis (FLUSHALL)..."
+    if command -v redis-cli >/dev/null 2>&1; then
+        redis-cli flushall
+        log "        Memoria de Redis purgada correctamente."
+    else
+        die "redis-cli no esta instalado o disponible en el PATH."
+    fi
+}
+
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    install_redis
+    action="${1:-install}"
+    case "$action" in
+        install) install_redis ;;
+        flush)   flush_redis ;;
+        *) die "Uso: $0 [install|flush]" ;;
+    esac
 fi
