@@ -29,6 +29,7 @@ $nav = [
         <span class="badge badge-soft">v<?= e(PANEL_VERSION) ?></span>
         <form method="POST" action="/" class="logout-form">
             <input type="hidden" name="action" value="logout">
+            <?= panel_csrf_field() ?>
             <button type="submit" class="nav-item nav-button">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12H4m0 0l3-3m-3 3l3 3M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5"/></svg>
                 <span>Cerrar sesión</span>
