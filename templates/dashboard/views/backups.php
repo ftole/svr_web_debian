@@ -1,28 +1,6 @@
 <?php
 $backups = panel_backups();
 $projects = panel_projects($CONFIG);
-$spec = [
-
-        'title' => 'Módulo 7: Respaldos Diarios Rotativos de 7 Días y Volcados SQL',
-        'endpoints' => [
-            'POST /?action=backup_create_now',
-            'POST /?action=backup_restore_snapshot (body: { snapshot_index })',
-            'POST /?action=backup_restore_dump (body: { dump_filename })'
-        ],
-        'commands' => [
-            'srvctl backup now',
-            'rsync -a --delete --link-dest=/var/backups/srvctl/daily.1/www/ /var/www/ /var/backups/srvctl/daily.0/www/',
-            'mariadb <db> < /var/backups/srvctl/dumps/<dump>.sql'
-        ],
-        'paths' => [
-            '/var/backups/srvctl/daily.0/ a daily.6/ (snapshots rotativos)',
-            '/var/backups/srvctl/dumps/*.sql (volcados estructurados de MariaDB)',
-            '/etc/cron.daily/srvctl-backup (automatización diaria en Debian)'
-        ],
-        'notes' => 'Rotación determinista de 7 días: daily.0 representa el backup más reciente. Cada nuevo ciclo rota los índices daily.(N-1) -> daily.N y elimina daily.6 mediante hardlinks deduplicados para minimizar uso de disco.'
-    
-];
-require $PANEL_ROOT . '/partials/dev_spec.php';
 ?>
 
 <!-- 1. Banner Principal de Respaldos -->
