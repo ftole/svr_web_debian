@@ -36,7 +36,9 @@ ALTER USER '${pma_user}'@'localhost' IDENTIFIED BY '${pma_pass}';
 GRANT SELECT, INSERT, UPDATE, DELETE ON \`${pma_db}\`.* TO '${pma_user}'@'localhost';
 FLUSH PRIVILEGES;
 SQL
-        cat > /etc/phpmyadmin/config-db.php <<PHP
+        local tmp_pma
+        tmp_pma="$(mktemp)"
+        cat > "$tmp_pma" <<PHP
 <?php
 \$dbuser='${pma_user}';
 \$dbpass='${pma_pass}';
@@ -46,8 +48,8 @@ SQL
 \$dbport='3306';
 \$dbtype='mysql';
 PHP
-        chown root:www-data /etc/phpmyadmin/config-db.php
-        chmod 640 /etc/phpmyadmin/config-db.php
+        install -m 640 -o root -g www-data "$tmp_pma" /etc/phpmyadmin/config-db.php
+        rm -f "$tmp_pma"
         log "        Almacenamiento de configuracion phpMyAdmin establecido."
     fi
 
