@@ -162,9 +162,11 @@ restore_db() {
     validate_root
     load_config
     acquire_backup_lock
-    local dump_name="$1"
-    [ -n "$dump_name" ] || die "Debes especificar el archivo de volcado. Ej: srvctl backup restore-db db_all_2026-09-26.sql.gz"
+    local dump_input="$1"
+    [ -n "$dump_input" ] || die "Debes especificar el archivo de volcado. Ej: srvctl backup restore-db db_all_2026-09-26.sql.gz"
 
+    local dump_name
+    dump_name="$(basename "$dump_input")"
     if [[ ! "$dump_name" =~ ^[a-zA-Z0-9_\.-]+\.sql(\.gz)?$ ]]; then
         die "Nombre de archivo de volcado invalido: ${dump_name}."
     fi
