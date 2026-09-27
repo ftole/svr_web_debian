@@ -466,6 +466,7 @@
         bindCopy();
         bindPasswordToggles();
         bindThemeToggle();
+        bindProjectSearch();
         bindQuickDownloads();
         bindDiagnosticsLogs();
     }
@@ -480,6 +481,39 @@
         }
     });
 
+
+    function bindProjectSearch() {
+        var searchInput = document.getElementById('project-filter-input');
+        var countText = document.getElementById('project-count-text');
+        var cards = document.querySelectorAll('.project-card-item');
+
+        if (!searchInput || !cards.length || searchInput.getAttribute('data-bound')) {
+            return;
+        }
+        searchInput.setAttribute('data-bound', '1');
+
+        searchInput.addEventListener('input', function() {
+            var query = searchInput.value.toLowerCase().trim();
+            var visibleCount = 0;
+
+            cards.forEach(function(card) {
+                var name = card.getAttribute('data-project-name') || '';
+                var db = card.getAttribute('data-project-db') || '';
+                var text = card.textContent.toLowerCase();
+
+                if (!query || name.indexOf(query) !== -1 || db.indexOf(query) !== -1 || text.indexOf(query) !== -1) {
+                    card.style.display = '';
+                    visibleCount++;
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+
+            if (countText) {
+                countText.textContent = 'Mostrando ' + visibleCount + ' de ' + cards.length + ' proyectos';
+            }
+        });
+    }
 
     function bindThemeToggle() {
         var btn = document.getElementById('theme-toggle');
