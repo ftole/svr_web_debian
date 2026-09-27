@@ -31,24 +31,23 @@ Este documento estipula las **invariantes inviolables de autoprotección** de la
 
 ## 2. Invariante de Protección de Base de Datos y Esquemas del Sistema
 - **Bases de Datos de Sistema Intocables:**
-  - `information_schema`, `performance_schema`, `mysql`, `sys`, `phpmyadmin`.
+  - `information_schema`, `performance_schema`, `mysql`, `sys`, `phpmyadmin`, `pmadb`.
 - **Protección de Cuentas Administrativas en `delete_database`:**
   - Al eliminar una base de datos, el script **NUNCA** debe ejecutar `DROP USER` sobre usuarios reservados o del sistema:
-    - `root`, `pma`, `debian-sys-maint`, `${ADMIN_USER}` (usuario maestro del servidor).
+    - `root`, `pma`, `debian-sys-maint`, `mariadb.sys`, `mysql`, `mysql.*`, `${ADMIN_USER}` (usuario maestro del servidor).
 - **Protección contra Inyección Indirecta vía `.env`:**
   - Al ejecutar `project delete <nombre>`, si se lee `DB_DATABASE` del archivo `.env`, dicho valor DEBE pasar por la lista negra de bases de datos protegidas antes de ejecutar `DROP DATABASE`.
-- **Salvaguarda Previa (Pre-drop Safety Snapshot):**
-  - Toda eliminación de base de datos (`srvctl db delete` o `srvctl project delete`) debe generar un volcado transaccional de seguridad en `/var/backups/srvctl/trash/` antes del borrado irreversible.
+- **Salvaguarda Previa e Integridad (Pre-drop Safety Snapshot):**
+  - Toda eliminación de base de datos (`srvctl db delete` o `srvctl project delete`) debe generar un volcado transaccional de seguridad en `/var/backups/srvctl/trash/` y validar su integridad con `gzip -t` antes de cualquier borrado irreversible.
 
 ---
 
-## 3. Invariante de Validación Previa de Sintaxis en Apache (Zero-Downtime Reload)
-- **Pre-flight Check Obligatorio:**
+## 3. Invariante de Validación Previa de Sintaxis en Apache y PHP-FPM (Zero-Downtime Reload)
+- **Pre-flight Check Obligatorio en Apache:**
   - **NUNCA** ejecutar `systemctl restart apache2` ni `systemctl reload apache2` sin haber ejecutado previamente `apache2ctl configtest` (o `apachectl -t`).
-  - Si `configtest` retorna código de salida distinto de `0` (fallo de sintaxis o certificados inexistentes):
-    - Abortar la recarga de inmediato.
-    - Registrar el error detallado en los logs.
-    - Mantener Apache intacto para no desconectar a los usuarios ni voltear el Dashboard web.
+  - Si `configtest` retorna código de salida distinto de `0`: abortar la recarga y preservar el servicio activo.
+- **Pre-flight Check Obligatorio en PHP-FPM:**
+  - **NUNCA** reiniciar ni recargar `php8.4-fpm` sin validar previamente con `php-fpm8.4 -t` (o `php-fpm -t`).
 - **Verificación de Certificados SSL:**
   - Comprobar la existencia física y no vacía de `/etc/ssl/localcerts/webserver.crt` y `webserver.key` antes de habilitar o recargar VirtualHosts SSL.
 - **Nombres de Proyecto Reservados en Ruteo:**
@@ -62,7 +61,8 @@ Este documento estipula las **invariantes inviolables de autoprotección** de la
   - Toda operación de larga duración o potencialmente destructiva debe usar un bloqueo de archivo exclusivo (`flock`):
     - `/run/lock/srvctl-backup.lock` para creación y restauración de snapshots y volcados.
     - `/run/lock/srvctl-apt.lock` para actualizaciones (`system upgrade`, `install`).
-    - `/run/lock/srvctl-project.lock` para creación/eliminación de proyectos y bases de datos.
+    - `/run/lock/srvctl-project.lock` para creación, aprovisionamiento DB y eliminación de proyectos.
+    - `/run/lock/srvctl-mariadb.lock` para optimizaciones globales de tablas (`mariadb-check -A --optimize`).
 - **Comportamiento ante Colisión:**
   - Si un proceso ya tiene el lock (ej. cron diario de respaldo corriendo), cualquier intento simultáneo (desde CLI o web) debe salir limpiamente con código de error explicativo ("Operación en curso por otro proceso; reintente más tarde"), sin corromper el estado.
 
@@ -70,8 +70,7 @@ Este documento estipula las **invariantes inviolables de autoprotección** de la
 
 ## 5. Invariante de Guardia de Almacenamiento (Storage Safeguard)
 - **Umbral Mínimo de Espacio Libre para Respaldos:**
-  - Antes de iniciar cualquier snapshot o volcado (`backup-daily.sh`, `srvctl backup run`), verificar que el sistema de archivos de destino tenga al menos:
-    - 15% de espacio libre o un mínimo de 1.5 GB libres.
+  - Antes de iniciar cualquier snapshot o volcado (`backup-daily.sh`, `srvctl backup run`), verificar que el sistema de archivos de destino tenga al menos 1.5 GB libres (1536000 KB validados con `validate_disk_space`).
   - Si el espacio libre está por debajo del umbral:
     - Abortar el respaldo antes de agotar los bloques de disco.
     - Notificar y registrar alarma en `/var/log/srvctl.log` y `/var/log/backup-daily.log`.
