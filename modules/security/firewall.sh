@@ -31,11 +31,12 @@ apply_firewall() {
     systemctl enable --now ufw >/dev/null 2>&1 || true
 
     mkdir -p /etc/fail2ban
-    cat > /etc/fail2ban/jail.local <<'EOF'
+    cat > /etc/fail2ban/jail.local <<EOF
 [DEFAULT]
 bantime = 1h
 findtime = 10m
 maxretry = 5
+ignoreip = 127.0.0.1/8 ::1 ${SERVER_IP:-}
 
 [sshd]
 enabled = true
