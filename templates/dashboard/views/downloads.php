@@ -1,25 +1,6 @@
 <?php
 $downloads = panel_downloads();
 $projects = panel_projects($CONFIG);
-$spec = [
-    'title' => 'Módulo 9: Descargas de Clientes y Scripts de Aprovisionamiento',
-    'endpoints' => [
-        'GET /downloads/rootCA.crt (Descarga del certificado de la Autoridad Raíz)',
-        'GET /downloads/configurar-cliente.bat (Script Windows cliente 1-clic)',
-        'GET /downloads/configurar-desarrollador.bat (Script Windows desarrollador 1-clic)',
-        'GET /downloads/dumps/:filename (Descarga directa de respaldos .sql)'
-    ],
-    'commands' => [
-        'Inyección dinámica de variables SERVER_IP y BASE_DOMAIN en plantillas .bat'
-    ],
-    'paths' => [
-        'templates/windows/configurar-cliente.bat',
-        'templates/windows/configurar-desarrollador.bat',
-        '/etc/ssl/certs/rootCA.crt'
-    ],
-    'notes' => 'Los scripts .bat deben generarse con finales de línea CRLF (estándar Windows) e inyectar en el archivo C:\Windows\System32\drivers\etc\hosts del cliente la IP del servidor asociada a los subdominios. El script desarrollador añade EnableLinkedConnections y mapea Z:\ a \\IP\proyectos.'
-];
-require $PANEL_ROOT . '/partials/dev_spec.php';
 ?>
 
 <div class="section-header">
