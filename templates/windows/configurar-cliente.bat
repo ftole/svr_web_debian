@@ -16,7 +16,6 @@ if %errorLevel% neq 0 (
 
 set "SERVER_IP=__SERVER_IP__"
 set "HOSTS=%SystemRoot%\System32\drivers\etc\hosts"
-set "CERT_UNC=\\%SERVER_IP%\proyectos\_dashboard\downloads\rootCA.crt"
 set "CERT_TMP=%TEMP%\rootCA.crt"
 
 echo ==============================================================================
@@ -37,13 +36,6 @@ if %errorLevel% equ 0 (
 if not exist "%CERT_TMP%" (
     echo       Descargando certificado via HTTPS [PowerShell]...
     powershell -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; [Net.ServicePointManager]::ServerCertificateValidationCallback = {$true}; Invoke-WebRequest -Uri 'https://%SERVER_IP%/downloads/rootCA.crt' -OutFile '%CERT_TMP%' -UseBasicParsing" <nul >nul 2>&1
-)
-
-if not exist "%CERT_TMP%" (
-    if exist "%CERT_UNC%" (
-        echo       Copiando certificado desde recurso de red...
-        copy /Y "%CERT_UNC%" "%CERT_TMP%" >nul 2>&1
-    )
 )
 
 if not exist "%CERT_TMP%" (
