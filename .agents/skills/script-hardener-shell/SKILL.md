@@ -11,13 +11,19 @@ description: >-
 Este documento define las reglas de codificación obligatorias para todo script en `bin/`, `core/`, `modules/` y utilidades de automatización en Debian 13.
 
 ## 1. Modo Estricto y Control de Ejecución
-Todo script ejecutable debe iniciar con:
-```bash
-#!/bin/bash
-set -euo pipefail
-```
+- **Scripts Standalone, Instalador y Wrappers de Seguridad (`install.sh`, `srvctl-web-wrapper`):**
+  ```bash
+  #!/bin/bash
+  set -euo pipefail
+  ```
+- **Orquestadores Modulares y Módulos de Pila (`bin/srvctl`, `modules/*/*.sh`):**
+  ```bash
+  #!/bin/bash
+  set -eo pipefail
+  ```
+  *(Permite la carga dinámica de configuración, herencia de variables opcionales y evaluación controlada sin abortos imprevistos de shell).*
 - `-e`: Aborta de inmediato si cualquier comando retorna un código de salida distinto de 0 (salvo en condicionales).
-- `-u`: Trata variables no definidas como un error fatal, evitando operaciones catastróficas como `rm -rf "${DIR_INEXISTENTE}/"`.
+- `-u`: Trata variables no definidas como un error fatal en scripts independientes.
 - `-o pipefail`: Propaga el código de error en tuberías (`cmd1 | cmd2`); si `cmd1` falla, la tubería completa falla.
 
 ## 2. Trampas y Limpieza Garantizada (Cleanup Traps)
