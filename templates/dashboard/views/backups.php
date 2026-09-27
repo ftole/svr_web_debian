@@ -193,7 +193,7 @@ $projects = panel_projects($CONFIG);
                             </td>
                             <td style="text-align: right;">
                                 <div style="display: inline-flex; align-items: center; gap: 6px;">
-                                    <a href="/downloads/snapshot_<?= e(str_replace('.', '_', $snapshot['name'])) ?>.tar.gz" download="snapshot_<?= e(str_replace('.', '_', $snapshot['name'])) ?>.tar.gz" class="btn btn-outline btn-sm" title="Descargar snapshot comprimido">
+                                    <a href="/?action=download&type=snapshot&name=<?= urlencode($snapshot['name']) ?>" download="snapshot_<?= e(str_replace('.', '_', $snapshot['name'])) ?>.tar.gz" class="btn btn-outline btn-sm" title="Descargar snapshot comprimido">
                                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                              <polyline points="7 10 12 15 17 10"></polyline>
@@ -256,7 +256,7 @@ $projects = panel_projects($CONFIG);
                             </td>
                             <td style="text-align: right;">
                                 <div style="display: inline-flex; align-items: center; gap: 6px;">
-                                    <a href="/downloads/<?= e($dump['name']) ?>" download="<?= e($dump['name']) ?>" class="btn btn-outline btn-sm" title="Descargar volcado .sql.gz">
+                                    <a href="/?action=download&type=backup_dump&file=<?= urlencode($dump['name']) ?>" download="<?= e($dump['name']) ?>" class="btn btn-outline btn-sm" title="Descargar volcado .sql.gz">
                                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                                             <polyline points="7 10 12 15 17 10"></polyline>
