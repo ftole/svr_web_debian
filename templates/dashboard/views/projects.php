@@ -1,27 +1,5 @@
 <?php
 $projects = panel_projects($CONFIG);
-
-$spec = [
-    'title' => 'Módulo 2: Gestión de Proyectos y Alojamiento Multisitio',
-    'endpoints' => [
-        'POST /?action=project_create (body: { name, php_version, create_db })',
-        'POST /?action=project_env_save (body: { name, content })',
-        'POST /?action=project_delete (body: { name, delete_db })',
-        'POST /?action=project_restore_snapshot (body: { name, snapshot_id })'
-    ],
-    'commands' => [
-        'srvctl project create <nombre>',
-        'chown -R www-data:www-data /var/www/<nombre>',
-        'chmod -R 2775 /var/www/<nombre> (SGID para sincronización Samba)'
-    ],
-    'paths' => [
-        '/var/www/<nombre>/public_html/ (raíz pública del sitio)',
-        '/var/www/<nombre>/public_html/.env (archivo de entorno dedicado)',
-        '/var/www/_dashboard (directorio reservado del sistema)'
-    ],
-    'notes' => 'Soporte de ruteo dual obligatorio: Apache mod_vhost_alias mapea *.empresa.local a /var/www/%1/public_html, y 00-dashboard.conf mapea ruta directa empresa.local/<nombre>/ con forzado de barra final 301. Si el directorio no existe deriva a /not_found.php.'
-];
-require $PANEL_ROOT . '/partials/dev_spec.php';
 ?>
 
 <!-- 1. Banner Principal de Proyectos -->
@@ -180,7 +158,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                     <?php endif; ?>
                 </div>
 
-                <ul class="meta" style="margin-top: 12px; margin-bottom: 16px;">
+                <ul class="meta">
                     <li><strong>Ruta:</strong> <code>/var/www/<?= e($project['name']) ?>/public_html</code></li>
                     <?php if (!empty($project['has_db'])): ?><li><strong>Base:</strong> <code><?= e($project['db_name']) ?></code></li><?php endif; ?>
                     <?php if (!empty($project['has_git'])): ?><li><strong>Git:</strong> <code><?= e($project['git']) ?></code></li><?php endif; ?>
@@ -188,7 +166,7 @@ require $PANEL_ROOT . '/partials/dev_spec.php';
                     <li><strong>Modificado:</strong> <?= e($project['updated']) ?></li>
                 </ul>
 
-                <div class="project-actions" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                <div class="project-actions">
                     <a href="https://<?= e($project['fqdn']) ?>" target="_blank" rel="noopener" class="btn btn-primary btn-sm" title="Abrir sitio web">
                         Abrir
                     </a>
