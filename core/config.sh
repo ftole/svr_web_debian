@@ -51,9 +51,9 @@ load_config() {
 save_config() {
     validate_root
     mkdir -p "$(dirname "$CONF_FILE")"
-    (
-        umask 077
-        cat > "$CONF_FILE" <<EOF
+    local tmp_file
+    tmp_file="$(mktemp)"
+    cat > "$tmp_file" <<EOF
 # Configuracion central de srvctl
 SERVER_IP='${SERVER_IP}'
 BASE_DOMAIN='${BASE_DOMAIN}'
@@ -67,6 +67,7 @@ ADMIN_USER='${ADMIN_USER}'
 ADMIN_PASS='${ADMIN_PASS}'
 PHP_VER='${PHP_VER}'
 EOF
-    )
+    install -m 600 -o root -g root "$tmp_file" "$CONF_FILE"
+    rm -f "$tmp_file"
     return 0
 }
