@@ -1,28 +1,5 @@
 <?php
 $db = panel_databases($CONFIG ?? []);
-
-$spec = [
-    'title' => 'Módulo 3: Bases de Datos MariaDB 11.8 y phpMyAdmin',
-    'endpoints' => [
-        'POST /?action=database_create (body: { name, user, password })',
-        'POST /?action=database_dump (body: { name })',
-        'POST /?action=database_delete (body: { name })',
-        'POST /?action=database_optimize (body: { name })'
-    ],
-    'commands' => [
-        'srvctl project db <nombre>',
-        'mariadb -e "CREATE DATABASE <name> CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"',
-        'mariadb -e "CREATE USER \'<user>\'@\'localhost\' IDENTIFIED BY \'<password>\'; GRANT ALL ON <name>.* TO \'<user>\'@\'localhost\'; FLUSH PRIVILEGES;"',
-        'mysqldump --single-transaction --routines --triggers <name> > /var/backups/srvctl/dumps/<name>.sql'
-    ],
-    'paths' => [
-        '/etc/mysql/mariadb.conf.d/50-server.cnf (configuración motor InnoDB)',
-        '/var/backups/srvctl/dumps/*.sql (almacén de volcados SQL)',
-        '/etc/phpmyadmin/config-db.php (almacenamiento de usuario de control pma)'
-    ],
-    'notes' => 'phpMyAdmin debe estar aislado por VirtualHost en webdev.empresa.local y alias /phpmyadmin o /webdev. Cada base de datos debe tener usuario dedicado con contraseña aleatoria y permisos restringidos exclusivamente a su esquema.'
-];
-require $PANEL_ROOT . '/partials/dev_spec.php';
 ?>
 
 <!-- 1. Banner Principal de Base de Datos -->
