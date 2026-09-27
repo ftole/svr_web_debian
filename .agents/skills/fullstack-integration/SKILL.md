@@ -42,26 +42,35 @@ El script `assets/js/app.js` intercepta todo formulario con `data-loading="..."`
 - Si error: `{ "success": false, "message": "Detalle del error en español" }`
 - Si la acción genera un informe (ej. auditoría o terminal): Guardar resultado en `$_SESSION['<modulo>_result']` y refrescar la sección con `?action=section&name=<modulo>`.
 
-## 3. Subcomandos CLI Requeridos en `bin/srvctl`
+## 3. Subcomandos CLI Soportados por el Wrapper
 1. `service restart <apache2|php8.4-fpm|mariadb|redis-server|smbd|ufw|fail2ban>`
 2. `service reload <apache2|php8.4-fpm>`
-3. `firewall toggle` (conmuta estado UFW)
+3. `firewall toggle [on|off]` (conmuta estado UFW)
 4. `firewall allow <puerto>/<proto> [<comentario>]`
 5. `firewall delete <regla_num|puerto/proto>`
 6. `security ban <ip>` (fail2ban-client set sshd banip <ip>)
 7. `security unban <ip>` (fail2ban-client set sshd unbanip <ip>)
 8. `security scan` (auditoría de puertos y sudo.log)
 9. `ssl renew` (recreación de CA/comodín y recarga limpia de Apache)
-10. `backup rollback-project <proyecto> <snapshot>` (rsync aislado sobre `/var/www/<proyecto>/`)
-11. `backup restore-db <dump_filename>` (descompresión e importación MariaDB)
+10. `backup run` (ejecución inmediata del ciclo de respaldo)
+11. `backup list` (listado de snapshots y volcados)
 12. `backup verify` (verificación de snapshots y sumas sha256)
-13. `db create <db_name> <db_user> [<db_pass>]` (creación directa de esquema y usuario)
-14. `db delete <db_name>` (eliminación directa de BD y usuario)
-15. `db optimize` (mariadb-check -A --optimize)
-16. `cache flush-redis` (redis-cli flushall)
-17. `system check-updates` (apt update && apt list --upgradable)
-18. `system upgrade [<package>]` (apt-get install -y --only-upgrade o apt-get dist-upgrade)
-19. `system change-password <new_password>` (actualiza ADMIN_PASS y hash en /etc/srvctl.conf)
+13. `backup rollback <snapshot>` (reversión global de `/var/www/`)
+14. `backup rollback-project <proyecto> <snapshot>` (rsync aislado sobre `/var/www/<proyecto>/`)
+15. `backup restore-db <dump_filename>` (descompresión e importación MariaDB)
+16. `db create <db_name> <db_user> [<db_pass>]` (creación directa de esquema y usuario)
+17. `db delete <db_name>` (eliminación directa de BD y usuario)
+18. `db optimize` (mariadb-check -A --optimize con lock)
+19. `project create <nombre>` (creación de estructura web y repo git)
+20. `project delete <nombre> [--force]` (eliminación con trash dump preventivo)
+21. `project db <nombre> [<db_name>]` (creación de base de datos dedicada e inyección en .env)
+22. `project list` (listado de proyectos activos)
+23. `cache flush-redis` (redis-cli flushall)
+24. `system check-updates` (apt update && apt list --upgradable)
+25. `system upgrade [<package>]` (apt-get install -y --only-upgrade o apt-get dist-upgrade)
+26. `system change-password <new_password>` (actualiza ADMIN_PASS y hash en /etc/srvctl.conf)
+27. `verify` (comprobación exhaustiva del stack 44/44)
+28. `api <security|samba|database>` (exportación JSON estructurada)
 
 ## 4. Reglas Obligatorias de Código
 - Commits atómicos: un archivo por commit con prefijo Conventional Commits en español.
