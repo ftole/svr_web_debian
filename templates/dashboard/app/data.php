@@ -164,6 +164,7 @@ function panel_projects(array $conf): array
             'git'        => $gitCommit,
             'has_db'     => $hasDb,
             'db_name'    => $dbName,
+            'env'        => $envTxt,
             'size'       => $size,
             'updated'    => $mtime > 0 ? date('Y-m-d H:i', $mtime) : 'N/D',
             'is_base'    => in_array($item, [$conf['PROD_SUB'], $conf['STG_SUB']], true),
