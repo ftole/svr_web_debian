@@ -103,7 +103,7 @@ sudo srvctl verify
 `.github/workflows/ci.yml` corre en cada push/PR a `main`:
 1. `bash -n` recursivo sobre todos los scripts y binarios.
 2. `shellcheck -S warning` sobre todos los componentes.
-3. Ejecucion de la suite de pruebas unitarias (`tests/test_validator.sh`).
+3. Ejecucion de las suites de pruebas unitarias y de integracion (tests/test_validator.sh y tests/test_wrapper.sh).
 4. `actionlint` para validar la sintaxis de GitHub Actions.
 Comprobar: `gh run list --limit 3`.
 
