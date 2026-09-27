@@ -5,27 +5,6 @@ $updateResult = $updateResult ?? ($_SESSION['update_result'] ?? null);
 $updateHistory = $updateHistory ?? [];
 $liveLogs = $liveLogs ?? [];
 $lastAptCheck = $lastAptCheck ?? 'Al día';
-$spec = [
-    'title' => 'Módulo 8: Diagnóstico, Auditoría srvctl verify y Logs en Vivo',
-    'endpoints' => [
-        'POST /?action=verify (Ejecución de auditoría de sistema)',
-        'POST /?action=clear_verify (Limpiar reporte de verificación)',
-        'GET /?action=stream_logs (Server-Sent Events / SSE para logs en tiempo real)',
-        'POST /?action=apt_upgrade (Aprovisionamiento de parches del SO)'
-    ],
-    'commands' => [
-        'srvctl verify (comprueba DNS, Apache, FPM, InnoDB, permisos SGID, certificados)',
-        'journalctl -f -n 50 -u apache2 -u php8.4-fpm -u mariadb -u redis-server',
-        'apt update && apt list --upgradable'
-    ],
-    'paths' => [
-        '/var/log/srvctl.log (registro centralizado de la CLI)',
-        '/var/log/syslog y /var/log/daemon.log',
-        '/var/log/apache2/error.log'
-    ],
-    'notes' => 'El subcomando srvctl verify genera salida estructurada con etiquetas [ OK ] y [FAIL]. El visor de logs del backend debe enviar líneas SSE con campos { time, source, badge, level, message } para alimentar la consola visual interactiva.'
-];
-require $PANEL_ROOT . '/partials/dev_spec.php';
 ?>
 
 <!-- 1. Encabezado y Puntuación de Salud del Servidor -->
