@@ -3,29 +3,6 @@ $security = panel_security() ?: [];
 $security['ufw'] = $security['ufw'] ?? ['enabled' => false, 'default_incoming' => 'deny', 'default_outgoing' => 'allow', 'rules' => []];
 $security['fail2ban'] = $security['fail2ban'] ?? ['active' => false, 'banned_details' => []];
 $security['ssh'] = $security['ssh'] ?? ['port' => 22, 'permit_root_login' => 'prohibit-password', 'max_auth_tries' => 3, 'kex' => 'curve25519-sha256', 'ciphers' => 'chacha20-poly1305,aes256-gcm'];
-$spec = [
-
-        'title' => 'Módulo 5: Seguridad, Cortafuegos UFW y Fail2ban',
-        'endpoints' => [
-            'POST /?action=security_unban_ip (body: { ip })',
-            'POST /?action=security_ufw_toggle (body: { enable: boolean })',
-            'POST /?action=security_ufw_allow (body: { port, proto })'
-        ],
-        'commands' => [
-            'ufw status numbered',
-            'fail2ban-client status sshd',
-            'fail2ban-client set sshd unbanip <IP>',
-            'tail -n 100 /var/log/sudo.log'
-        ],
-        'paths' => [
-            '/etc/ufw/user.rules',
-            '/etc/fail2ban/jail.local',
-            '/var/log/sudo.log (auditoría obligatoria de comandos administrativos)'
-        ],
-        'notes' => 'Validar estrictamente direcciones IPv4 (formato X.X.X.X, octetos 0-255) antes de invocar ufw o fail2ban-client para prevenir inyecciones de comandos en bash. Las sesiones de auditoría deben registrarse con timestamp y usuario.'
-    
-];
-require $PANEL_ROOT . '/partials/dev_spec.php';
 ?>
 
 <!-- 1. Banner Principal de Seguridad -->
