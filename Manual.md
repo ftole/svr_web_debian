@@ -141,7 +141,7 @@ Para gestionar tus tablas con interfaz gráfica, ingresa a:
 ## 5. Guía de supervivencia: ¿Qué hacer si algo falla?
 
 ### 1. ¿Cómo saber si todo el servidor está sano?
-Ejecuta la suite de auto-verificación de 40 puntos:
+Ejecuta la suite de auto-verificación de 44 puntos:
 ```bash
 sudo srvctl verify
 ```
@@ -161,13 +161,13 @@ git clean -fd            # Elimina archivos temporales o accidentales
 ```
 
 ### 3. Si se dañó la base de datos
-El servidor realiza respaldos comprimidos de todas las bases de datos a las 02:00 AM. Para restaurar:
+El servidor realiza respaldos comprimidos de todas las bases de datos a las 02:00 AM. Para restaurar de forma protegida:
 ```bash
 # 1. Ver qué respaldos existen
-ls -lh /var/backups/srvctl/database/
+sudo srvctl backup list
 
-# 2. Restaurar el respaldo que elijas
-gunzip -c /var/backups/srvctl/database/db_all_YYYY-MM-DD_HH-MM-SS.sql.gz | sudo mariadb
+# 2. Restaurar el respaldo que elijas (con validacion de integridad gzip)
+sudo srvctl backup restore-db /var/backups/srvctl/database/db_all_YYYY-MM-DD_HH-MM-SS.sql.gz
 ```
 
 ### 4. Si quieres recuperar archivos borrados de los últimos 7 días
@@ -175,7 +175,12 @@ El servidor mantiene snapshots rotativos diarios mediante hard-links en `/var/ba
 - `daily.0` es el respaldo de ayer.
 - `daily.1` es el de hace 2 días (y así hasta `daily.6`, hace 7 días).
 
-Para restaurar todo el contenido de un proyecto al estado de ayer:
+Para restaurar exclusivamente la carpeta de un proyecto específico sin alterar los demás:
+```bash
+sudo srvctl backup rollback-project tienda daily.0
+```
+
+Para restaurar todo el contenido de `/var/www/` al estado de ayer:
 ```bash
 sudo srvctl backup rollback daily.0
 ```
@@ -185,6 +190,7 @@ Si necesitas purgar todos los paquetes, bases de datos y configuraciones para de
 ```bash
 sudo srvctl reset
 ```
+*Por seguridad, el sistema te solicitará escribir la palabra `DESTRUIR` en mayúsculas para evitar borrados accidentales. En modo no interactivo se requiere el flag `--confirm-destroy-all`.*
 
 ---
 
@@ -196,12 +202,22 @@ Puedes invocar `srvctl` sin argumentos para abrir el menú interactivo con venta
 | :--- | :--- |
 | `sudo srvctl` | Abre el menú visual interactivo con todas las opciones guiadas. |
 | `sudo srvctl status` | Muestra un resumen rápido de salud, uso de RAM, disco y servicios activos. |
-| `sudo srvctl verify` | Ejecuta la suite de diagnóstico profundo de 40 puntos. |
+| `sudo srvctl verify` | Ejecuta la suite de diagnóstico profundo de 44 puntos. |
 | `sudo srvctl project create <nombre>` | Crea la estructura de un nuevo proyecto web con Git y permisos listos. |
 | `sudo srvctl project db <nombre>` | Crea la base de datos MariaDB, usuario y genera el archivo `.env`. |
+| `sudo srvctl project delete <nombre>` | Elimina un proyecto y su base de datos previa copia de seguridad en `/trash/`. |
 | `sudo srvctl project list` | Lista todos los proyectos web activos detectados en el servidor. |
 | `sudo srvctl backup run` | Ejecuta un respaldo manual inmediato de base de datos y archivos. |
 | `sudo srvctl backup list` | Muestra la lista de respaldos y snapshots existentes con fecha y tamaño. |
-| `sudo srvctl backup rollback [snap]` | Restaura los archivos web al snapshot indicado (por defecto `daily.0`). |
-| `sudo srvctl reset` | Limpia y desinstala el stack completo para dejar el Debian virgen. |
+| `sudo srvctl backup restore-db <archivo>` | Restaura un volcado SQL validando previamente la integridad con `gzip -t`. |
+| `sudo srvctl backup rollback-project <nom>` | Restaura de forma aislada un único proyecto desde un snapshot rotativo. |
+| `sudo srvctl backup rollback [snap]` | Restaura todos los archivos web al snapshot indicado (por defecto `daily.0`). |
+| `sudo srvctl service restart <servicio>` | Reinicia un servicio systemd previa comprobación de sintaxis (Apache/FPM). |
+| `sudo srvctl service reload <servicio>` | Recarga la configuración de Apache o PHP-FPM sin cortar conexiones activas. |
+| `sudo srvctl firewall allow <puerto>` | Abre un puerto específico en el cortafuegos UFW. |
+| `sudo srvctl security ban <ip>` | Bloquea una dirección IP maliciosa con protección contra auto-bloqueo. |
+| `sudo srvctl ssl renew` | Regenera y recarga los certificados SSL comodín SAN. |
+| `sudo srvctl system check-updates` | Comprueba si existen actualizaciones pendientes en Debian 13. |
+| `sudo srvctl system upgrade` | Aplica actualizaciones del sistema operativo con cerrojo de concurrencia. |
+| `sudo srvctl reset` | Limpia y desinstala el stack completo para dejar el Debian virgen (requiere `DESTRUIR`). |
 | `sudo srvctl deploy` | Lanza el asistente de instalación para desplegar todo el stack. |
