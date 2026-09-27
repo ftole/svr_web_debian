@@ -279,9 +279,19 @@ cmd_verify() {
     [ "$FAIL" -eq 0 ]
 }
 
+acquire_project_lock() {
+    local lockfile="/run/lock/srvctl-project.lock"
+    mkdir -p /run/lock
+    exec 203>"$lockfile"
+    if ! flock -n 203; then
+        die "Otra operacion de proyecto ya se encuentra en ejecucion."
+    fi
+}
+
 cmd_project_create() {
     validate_root
     load_config
+    acquire_project_lock
     local name="$1"
     [ -n "$name" ] || die "Debes especificar el nombre del proyecto. Ej: srvctl project create tienda"
 
@@ -348,6 +358,7 @@ cmd_project_list() {
 cmd_project_db() {
     validate_root
     load_config
+    acquire_project_lock
     local name="$1"
     local db_name_arg="${2:-}"
     [ -n "$name" ] || die "Debes especificar el nombre del proyecto. Ej: srvctl project db tienda"
@@ -397,10 +408,8 @@ cmd_project_db() {
             echo "DB_USERNAME=${db_user}"
             echo "DB_PASSWORD=${db_pass}"
         } >> "${env_tmp}"
-        cat "${env_tmp}" > "${env_file}"
+        install -m 660 -o "${ADMIN_USER}" -g www-data "${env_tmp}" "${env_file}"
         rm -f "${env_tmp}"
-        chown "${ADMIN_USER}":www-data "${env_file}"
-        chmod 660 "${env_file}"
         log "[Base de Datos] Archivo de entorno actualizado en ${env_file}"
     fi
 
@@ -419,6 +428,7 @@ cmd_project_db() {
 cmd_project_delete() {
     validate_root
     load_config
+    acquire_project_lock
     local name="$1"
     local force="${2:-}"
     [ -n "$name" ] || die "Debes especificar el nombre del proyecto. Ej: srvctl project delete tienda"
@@ -442,21 +452,26 @@ cmd_project_delete() {
         env_db="$(awk -F= '/^DB_DATABASE=/{print $2; exit}' "${env_file}" 2>/dev/null || true)"
     fi
 
-    if [ -d "${pdir}" ]; then
-        rm -rf "${pdir}"
-        log "[Proyecto] Directorio web eliminado: ${pdir}"
-    fi
-
     local db_name="${name//-/_}_db"
     local db_user="${name//-/_}_usr"
 
-    # Respaldo preventivo antes del borrado
+    # Respaldo preventivo antes del borrado con verificacion de integridad
     local trash_dir="/var/backups/srvctl/trash"
     mkdir -p "$trash_dir"
     local ts
     ts="$(date +%Y%m%d_%H%M%S)"
+    local trash_file="${trash_dir}/${db_name}_${ts}.sql.gz"
     if mariadb -e "USE \`${db_name}\`;" 2>/dev/null; then
-        mariadb-dump --single-transaction --quick "${db_name}" 2>/dev/null | gzip -9 > "${trash_dir}/${db_name}_${ts}.sql.gz" 2>/dev/null || true
+        log "[Proyecto] Generando respaldo preventivo en ${trash_file}..."
+        if mariadb-dump --single-transaction --quick "${db_name}" 2>/dev/null | gzip -9 > "${trash_file}" 2>/dev/null; then
+            if ! gzip -t "${trash_file}" 2>/dev/null; then
+                rm -f "${trash_file}"
+                die "Fallo de integridad al verificar el respaldo preventivo (${trash_file}). Se aborta la eliminacion de ${name} por seguridad."
+            fi
+        else
+            rm -f "${trash_file}"
+            die "No se pudo generar el respaldo preventivo en ${trash_file}. Se aborta la eliminacion de ${name} por seguridad."
+        fi
     fi
 
     mariadb -e "DROP DATABASE IF EXISTS \`${db_name}\`;" 2>/dev/null || true
@@ -468,14 +483,28 @@ cmd_project_delete() {
         if [[ "$lower_env_db" =~ $is_sys_db ]]; then
             log "[AVISO] La base de datos '${env_db}' especificada en .env es de sistema y NO sera eliminada."
         else
+            if mariadb -e "USE \`${env_db}\`;" 2>/dev/null; then
+                local env_trash="${trash_dir}/${env_db}_${ts}.sql.gz"
+                if mariadb-dump --single-transaction --quick "${env_db}" 2>/dev/null | gzip -9 > "${env_trash}" 2>/dev/null; then
+                    if ! gzip -t "${env_trash}" 2>/dev/null; then
+                        rm -f "${env_trash}"
+                        die "Fallo de integridad al verificar el respaldo de ${env_db}. Se aborta la eliminacion."
+                    fi
+                fi
+            fi
             mariadb -e "DROP DATABASE IF EXISTS \`${env_db}\`;" 2>/dev/null || true
         fi
     fi
 
     case "$db_user" in
-        root|pma|debian-sys-maint|mariadb.sys|"${ADMIN_USER:-webadmin}") ;;
+        root|pma|debian-sys-maint|mariadb.sys|mysql|mysql.*|"${ADMIN_USER:-webadmin}") ;;
         *) mariadb -e "DROP USER IF EXISTS '${db_user}'@'localhost', '${db_user}'@'127.0.0.1';" 2>/dev/null || true ;;
     esac
+
+    if [ -d "${pdir}" ]; then
+        rm -rf "${pdir}"
+        log "[Proyecto] Directorio web eliminado: ${pdir}"
+    fi
 
     log "[Proyecto] Proyecto '${name}' y base de datos eliminados correctamente."
 }
@@ -689,9 +718,17 @@ cmd_service_restart() {
         fi
     fi
 
-    if [[ "$unit" =~ ^php[0-9.]*-fpm$ ]]; then
-        local fpm_bin="$unit"
-        if command -v "$fpm_bin" >/dev/null 2>&1; then
+    if [[ "$unit" =~ ^php([0-9.]*)-fpm$ ]]; then
+        local fpm_ver="${BASH_REMATCH[1]}"
+        local fpm_bin=""
+        if [ -n "$fpm_ver" ] && command -v "php-fpm${fpm_ver}" >/dev/null 2>&1; then
+            fpm_bin="php-fpm${fpm_ver}"
+        elif command -v "$unit" >/dev/null 2>&1; then
+            fpm_bin="$unit"
+        elif command -v php-fpm >/dev/null 2>&1; then
+            fpm_bin="php-fpm"
+        fi
+        if [ -n "$fpm_bin" ]; then
             if ! "$fpm_bin" -t >/dev/null 2>&1; then
                 die "Error de sintaxis en configuracion de PHP-FPM (${fpm_bin} -t fallo). Servicio NO reiniciado."
             fi
@@ -720,9 +757,17 @@ cmd_service_reload() {
         fi
     fi
 
-    if [[ "$unit" =~ ^php[0-9.]*-fpm$ ]]; then
-        local fpm_bin="$unit"
-        if command -v "$fpm_bin" >/dev/null 2>&1; then
+    if [[ "$unit" =~ ^php([0-9.]*)-fpm$ ]]; then
+        local fpm_ver="${BASH_REMATCH[1]}"
+        local fpm_bin=""
+        if [ -n "$fpm_ver" ] && command -v "php-fpm${fpm_ver}" >/dev/null 2>&1; then
+            fpm_bin="php-fpm${fpm_ver}"
+        elif command -v "$unit" >/dev/null 2>&1; then
+            fpm_bin="$unit"
+        elif command -v php-fpm >/dev/null 2>&1; then
+            fpm_bin="php-fpm"
+        fi
+        if [ -n "$fpm_bin" ]; then
             if ! "$fpm_bin" -t >/dev/null 2>&1; then
                 die "Error de sintaxis en configuracion de PHP-FPM (${fpm_bin} -t fallo). Servicio NO recargado."
             fi
