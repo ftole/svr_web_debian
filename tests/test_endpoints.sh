@@ -44,11 +44,22 @@ fi
 echo "  [INFO] CSRF Token obtenido: ${CSRF_TOKEN:0:10}..."
 
 # Iniciar sesión vía POST
+LOGIN_USER="${ADMIN_USER:-webadmin}"
+LOGIN_PASS="${ADMIN_PASS:-Temp123#}"
+if [ -f "/etc/srvctl-panel.conf" ]; then
+    CFG_USER=$(grep -E '^ADMIN_USER=' /etc/srvctl-panel.conf 2>/dev/null | cut -d"'" -f2 || true)
+    [ -n "$CFG_USER" ] && LOGIN_USER="$CFG_USER"
+fi
+if [ -f "/etc/srvctl.conf" ]; then
+    CFG_PASS=$(grep -E '^ADMIN_PASS=' /etc/srvctl.conf 2>/dev/null | cut -d"'" -f2 || true)
+    [ -n "$CFG_PASS" ] && LOGIN_PASS="$CFG_PASS"
+fi
+
 LOGIN_RESP=$(curl -k -s -b "$COOKIE_JAR" -c "$COOKIE_JAR" -X POST "https://127.0.0.1/" \
     -H "Accept: application/json" \
     -d "action=login" \
-    -d "username=webadmin" \
-    -d "password=Pruebas123#" \
+    -d "username=${LOGIN_USER}" \
+    -d "password=${LOGIN_PASS}" \
     -d "csrf_token=${CSRF_TOKEN}")
 
 echo "  [INFO] Respuesta login: $LOGIN_RESP"
