@@ -1064,7 +1064,8 @@ pre code {
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    min-height: 220px;
+    padding: 14px 16px;
+    min-height: 180px;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -1076,15 +1077,15 @@ pre code {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 8px;
+    margin-bottom: 8px;
 }
 
 .project-top h3 {
-    font-size: 1.2rem;
+    font-size: 1.05rem;
     font-weight: 700;
     color: var(--text);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .link {
@@ -1102,11 +1103,11 @@ ul.meta {
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    font-size: 0.82rem;
+    gap: 3px;
+    font-size: 0.78rem;
     color: var(--text-secondary);
-    margin: 10px 0 16px;
-    padding: 10px 12px;
+    margin: 6px 0 10px;
+    padding: 6px 10px;
     background: var(--bg);
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-light);
@@ -1121,9 +1122,9 @@ ul.meta li strong {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
     margin-top: auto;
-    padding-top: 14px;
+    padding-top: 10px;
     border-top: 1px solid var(--border-light);
 }
 
@@ -2173,8 +2174,8 @@ select.input:focus {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 0.72rem;
-    padding: 2px 6px;
+    font-size: 0.65rem;
+    padding: 1px 5px;
     border-radius: var(--radius-sm);
     background: var(--primary-soft);
     color: var(--primary);
@@ -2187,79 +2188,6 @@ select.input:focus {
     gap: 12px;
     margin-bottom: 20px;
     flex-wrap: wrap;
-}
-
-/* ==========================================================================
-   DEVELOPER SPECIFICATION CALLOUTS (Template Handoff Notes)
-   ========================================================================== */
-
-.dev-spec-box {
-    background: var(--surface);
-    border: 1px dashed var(--primary);
-    border-radius: var(--radius);
-    padding: 16px 20px;
-    margin-bottom: 22px;
-    box-shadow: var(--elevation-1);
-    transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-body.hide-dev-notes .dev-spec-box {
-    display: none !important;
-}
-
-.dev-spec-header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border-light);
-}
-
-.dev-spec-title {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: var(--primary);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.dev-spec-badge {
-    background: var(--primary-soft);
-    color: var(--primary);
-    font-size: 0.72rem;
-    font-weight: 700;
-    padding: 3px 8px;
-    border-radius: var(--radius-full);
-    border: 1px solid rgba(92, 141, 123, 0.3);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
-
-.dev-spec-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 14px;
-    font-size: 0.83rem;
-    color: var(--text-secondary);
-}
-
-.dev-spec-item strong {
-    color: var(--text);
-    display: block;
-    margin-bottom: 3px;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-}
-
-.dev-spec-item code {
-    font-size: 0.82rem;
-    color: var(--primary);
-    font-weight: 600;
 }
 
 
