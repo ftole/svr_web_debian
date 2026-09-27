@@ -123,7 +123,7 @@ if ($isDownloadAction || $isDbUrl || $isConfUrl) {
 
     if ($type === 'db') {
         $proj = strtolower(trim((string)($_GET['project'] ?? '')));
-        if (!preg_match('/^[a-z0-9][a-z0-9\-]*[a-z0-9]?$/', $proj) || strlen($proj) > 63) {
+        if (!preg_match('/^[a-z0-9][a-z0-9_\-]*[a-z0-9]?$/', $proj) || strlen($proj) > 63) {
             http_response_code(400);
             echo 'Nombre de proyecto no válido.';
             exit;
@@ -141,7 +141,7 @@ if ($isDownloadAction || $isDbUrl || $isConfUrl) {
         header('Content-Type: application/sql; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
         if ($fsize !== false) {
-            header('Content-Length: ' . $fsize);
+            header('Content-Length: ' . (string)$fsize);
         }
         header('Cache-Control: private, no-cache, no-store, must-revalidate');
         header('Pragma: no-cache');
@@ -149,6 +149,68 @@ if ($isDownloadAction || $isDbUrl || $isConfUrl) {
         if ($isTmp) {
             @unlink($filePath);
         }
+        exit;
+    }
+
+    if ($type === 'backup_dump') {
+        $file = basename(trim((string)($_GET['file'] ?? '')));
+        if (!preg_match('/^[a-zA-Z0-9_.-]+\.sql\.gz$/', $file)) {
+            http_response_code(400);
+            echo 'Nombre de archivo no válido.';
+            exit;
+        }
+        $backupDir = $CONFIG['BACKUP_DIR'] ?? '/var/backups/srvctl';
+        $candidates = [
+            $backupDir . '/database/' . $file,
+            $backupDir . '/dumps/' . $file,
+        ];
+        $filePath = '';
+        foreach ($candidates as $c) {
+            if (is_file($c) && is_readable($c)) {
+                $filePath = $c;
+                break;
+            }
+        }
+        if ($filePath === '') {
+            http_response_code(404);
+            echo 'Volcado no encontrado.';
+            exit;
+        }
+        session_write_close();
+        $fsize = filesize($filePath);
+        header('Content-Type: application/gzip');
+        header('Content-Disposition: attachment; filename="' . $file . '"');
+        if ($fsize !== false) {
+            header('Content-Length: ' . (string)$fsize);
+        }
+        header('Cache-Control: private, no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        readfile($filePath);
+        exit;
+    }
+
+    if ($type === 'snapshot') {
+        $snapName = basename(trim((string)($_GET['name'] ?? '')));
+        if (!preg_match('/^[a-zA-Z0-9_.-]+$/', $snapName)) {
+            http_response_code(400);
+            echo 'Nombre de snapshot no válido.';
+            exit;
+        }
+        $backupDir = $CONFIG['BACKUP_DIR'] ?? '/var/backups/srvctl';
+        $snapPath = $backupDir . '/snapshots/' . $snapName;
+        if (!is_dir($snapPath)) {
+            http_response_code(404);
+            echo 'Directorio de snapshot no encontrado.';
+            exit;
+        }
+        session_write_close();
+        $tarName = 'snapshot_' . str_replace('.', '_', $snapName) . '.tar.gz';
+        header('Content-Type: application/gzip');
+        header('Content-Disposition: attachment; filename="' . $tarName . '"');
+        header('Cache-Control: private, no-cache, no-store, must-revalidate');
+        header('Pragma: no-cache');
+        $cmd = 'tar -czf - -C ' . escapeshellarg($snapPath) . ' .';
+        passthru($cmd);
         exit;
     }
 
@@ -195,6 +257,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     };
 
     if ($action === 'logout') {
+        if (!panel_csrf_valid()) {
+            $respond(false, 'Token de seguridad inválido. Recarga la página.', 'overview');
+        }
         panel_logout();
         if ($isAjax) {
             header('Content-Type: application/json; charset=utf-8');
@@ -277,7 +342,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                         }
                         [$dbCode, $dbOut] = panel_srvctl($args, 30);
                         if ($dbCode === 0) {
-                            $_SESSION['db_result'] = panel_read_env_db($name);
+                            $_SESSION['project_db_result'] = panel_read_env_db($name);
+                            $_SESSION['db_result'] = $_SESSION['project_db_result'];
                             $msg .= " Base de datos aprovisionada para '{$name}'.";
                         } else {
                             $msg .= " (Falló aprovisionamiento DB: {$dbOut})";
@@ -295,7 +361,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             } else {
                 [$code, $output] = panel_srvctl(['project', 'db', $name], 30);
                 if ($code === 0) {
-                    $_SESSION['db_result'] = panel_read_env_db($name);
+                    $_SESSION['project_db_result'] = panel_read_env_db($name);
+                    $_SESSION['db_result'] = $_SESSION['project_db_result'];
                     $respond(true, "Base de datos aprovisionada para '{$name}'.", 'projects');
                 } else {
                     $respond(false, 'Error al aprovisionar la base de datos: ' . $output, 'projects');
@@ -607,15 +674,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     . "[ OK ] mysql ... OK\n"
                     . "[ OK ] mariadb-check -A --optimize completado exitosamente.";
             }
-            $_SESSION['db_result'] = [
+            $_SESSION['db_optimize_result'] = [
                 'output'    => $output,
                 'timestamp' => date('Y-m-d H:i:s'),
             ];
+            $_SESSION['db_result'] = $_SESSION['db_optimize_result'];
             $respond($code === 0, $code === 0 ? 'Optimización de tablas completada con éxito.' : "Error al optimizar tablas: {$output}", 'database');
             break;
 
         case 'clear_db_results':
-            unset($_SESSION['db_result']);
+            unset($_SESSION['db_optimize_result'], $_SESSION['db_result']);
             $respond(true, 'Resultados de base de datos limpiados.', 'database');
             break;
 
