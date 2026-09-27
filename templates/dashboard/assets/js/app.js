@@ -466,7 +466,6 @@
         bindCopy();
         bindPasswordToggles();
         bindThemeToggle();
-        bindDevNotesToggle();
         bindQuickDownloads();
         bindDiagnosticsLogs();
     }
@@ -481,37 +480,6 @@
         }
     });
 
-    function bindDevNotesToggle() {
-        var btn = document.getElementById('dev-notes-toggle');
-        var savedState = localStorage.getItem('srvctl_dev_notes');
-        
-        if (savedState === 'hidden') {
-            document.body.classList.add('hide-dev-notes');
-        } else {
-            document.body.classList.remove('hide-dev-notes');
-        }
-
-        function updateBtnState() {
-            if (!btn) { return; }
-            var isHidden = document.body.classList.contains('hide-dev-notes');
-            btn.classList.toggle('active', !isHidden);
-            var label = btn.querySelector('.dev-notes-btn-text');
-            if (label) {
-                label.textContent = isHidden ? 'Ver Notas Backend' : 'Notas Backend';
-            }
-        }
-        updateBtnState();
-
-        if (btn && !btn.getAttribute('data-bound')) {
-            btn.setAttribute('data-bound', '1');
-            btn.addEventListener('click', function() {
-                var isHidden = document.body.classList.toggle('hide-dev-notes');
-                localStorage.setItem('srvctl_dev_notes', isHidden ? 'hidden' : 'visible');
-                updateBtnState();
-                showToast('info', isHidden ? 'Notas de especificación ocultadas (Vista Maqueta).' : 'Notas de especificación técnica activadas para el desarrollador.');
-            });
-        }
-    }
 
     function bindThemeToggle() {
         var btn = document.getElementById('theme-toggle');
