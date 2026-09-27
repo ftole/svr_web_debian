@@ -31,7 +31,7 @@ Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.
 | `modules/backup/` | Sistema de respaldos diarios por snapshots rotativos de 7 dias y volcados SQL. |
 | `templates/dashboard/` | Codigo fuente del Panel de Control multiarchivo (`index.php`, `app/`, `views/`, `partials/`, `assets/`, `not_found.php`). |
 | `templates/windows/` | Scripts de aprovisionamiento en 1 clic para clientes (`configurar-cliente.bat`, `configurar-desarrollador.bat`) con inyeccion de resolucion en el archivo `hosts`. |
-| `tests/test_validator.sh` | Suite de pruebas unitarias automatizadas y chaos testing de validacion de entradas. |
+| `tests/` | Suites de pruebas automatizadas: `test_validator.sh`, `test_wrapper.sh` y `test_endpoints.sh`. |
 | `.agents/rules/` | Reglas operativas y directrices de orquestacion multi-agente. |
 | `.agents/skills/` | Catalogo de habilidades modulares especializadas para agentes de trabajo. |
 | `install.sh` | Bootstrap de instalacion via `curl`: descarga a `/opt/srvctl` y enlaza el CLI global. |
@@ -50,7 +50,7 @@ Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.
 3. **Nunca** commitear `debian_pruebas.txt` ni credenciales (esta en `.gitignore`). Si anades secretos, ignoralos.
 4. **No añadir comentarios** al código salvo que aporten valor real; el código de shell se documenta con bloques claros.
 5. **CI en verde** es requisito antes de dar por terminado un cambio (ver §5).
-6. Antes de commitear, validar sintaxis con `bash -n`, `shellcheck -S warning` y ejecutar `tests/test_validator.sh`.
+6. Antes de commitear, validar sintaxis con `bash -n`, `shellcheck -S warning` y ejecutar `tests/test_validator.sh` y `tests/test_wrapper.sh`.
 7. **Paradigma Multi-Agente Obligatorio:** Todo desarrollo, refactorización, endurecimiento o auditoría compleja debe abordarse coordinando agentes y subagentes concurrentes y especializados (ej. Coordinador, Desarrollador de Scripts, Desarrollador UI, Auditor de Seguridad/Caos y Verificador QA). Ningún cambio se da por concluido sin validación cruzada entre agentes.
 8. **Invariantes Anti-Autoaniquilación (Self-Defending System):** Todo script, endpoint o acción interactiva debe incorporar protecciones activas contra acciones destructivas o accidentales del usuario (guardrails en firewall contra auto-bloqueo SSH, prohibición estricta de borrado de recursos de sistema, pruebas pre-vuelo antes de reiniciar servicios y bloqueos de concurrencia con `flock`).
 
@@ -77,6 +77,7 @@ Apache 2.4 (MPM Event) + PHP 8.4 FPM + Composer 2.x + Redis Server + MariaDB 11.
 bash -n *.sh bin/* core/*.sh modules/*/*.sh tests/*.sh
 shellcheck -S warning *.sh bin/* core/*.sh modules/*/*.sh tests/*.sh
 bash tests/test_validator.sh
+bash tests/test_wrapper.sh
 ```
 
 **Despliegue rápido:**
@@ -139,7 +140,7 @@ Comprobar: `gh run list --limit 3`.
 | Skill | Enfoque y Responsabilidad |
 | :--- | :--- |
 | `multi-agent-orchestration` | Protocolo de división de trabajo, sincronización y validación cruzada concurrente entre múltiples agentes. |
-| `script-hardener-shell` | Estándares de desarrollo de scripts Bash ultra-robustos (`set -euo pipefail`, trampas `trap`, validación estricta, `flock`, reemplazo atómico). |
+| `script-hardener-shell` | Estándares de desarrollo de scripts Bash robustos (`set -eo pipefail` en orquestadores modulares, `set -euo pipefail` en wrappers/instalador, trampas `trap`, validación estricta, `flock`, reemplazo atómico). |
 | `self-defense-guardian` | Guardrails de auto-protección del servidor (protección SSH/UFW, pre-vuelos antes de recargas, esquemas y carpetas inmutables). |
 | `chaos-anti-breakage` | Metodología de auditoría contra dobles envíos, tolerancia a servicios caídos y resiliencia en frontend. |
 | `fullstack-integration` | Especificación técnica de la cadena segura Navegador -> PHP -> Wrapper -> CLI -> JSON. |
