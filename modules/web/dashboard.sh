@@ -68,9 +68,12 @@ deploy_dashboard() {
         sed -i 's/$/\r/' "${dl_dir}/configurar-desarrollador.bat"
     fi
 
-    # Copiar rootCA si existe
+    # Copiar certificados SSL publicos si existen
     if [ -f "/etc/ssl/localcerts/rootCA.crt" ]; then
         cp -f "/etc/ssl/localcerts/rootCA.crt" "${dl_dir}/rootCA.crt"
+    fi
+    if [ -f "/etc/ssl/localcerts/webserver.crt" ]; then
+        cp -f "/etc/ssl/localcerts/webserver.crt" "${dl_dir}/webserver.crt"
     fi
 
     chown -R "${ADMIN_USER}":www-data "${dash_dir}"
