@@ -167,7 +167,8 @@ El servidor realiza respaldos comprimidos de todas las bases de datos a las 02:0
 sudo srvctl backup list
 
 # 2. Restaurar el respaldo que elijas (con validacion de integridad gzip)
-sudo srvctl backup restore-db /var/backups/srvctl/database/db_all_YYYY-MM-DD_HH-MM-SS.sql.gz
+# Puedes especificar el nombre del archivo o su ruta completa
+sudo srvctl backup restore-db db_all_YYYY-MM-DD_HH-MM-SS.sql.gz
 ```
 
 ### 4. Si quieres recuperar archivos borrados de los últimos 7 días
