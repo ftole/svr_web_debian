@@ -52,9 +52,13 @@ EOF
 
     (echo "${ADMIN_PASS}"; echo "${ADMIN_PASS}") | smbpasswd -s -a "${ADMIN_USER}" >/dev/null 2>&1
     systemctl enable --now smbd >/dev/null 2>&1 || true
-    systemctl restart smbd >/dev/null 2>&1 || true
 
-    log "        Samba SMBv3 listo con recurso \\\\${SERVER_IP}\\proyectos."
+    if testparm -s /etc/samba/smb.conf >/dev/null 2>&1; then
+        systemctl restart smbd >/dev/null 2>&1 || true
+        log "        Samba SMBv3 listo con recurso \\\\${SERVER_IP}\\proyectos."
+    else
+        log_warn "Error de sintaxis en /etc/samba/smb.conf verificado por testparm. Omitiendo reinicio."
+    fi
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
