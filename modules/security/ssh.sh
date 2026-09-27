@@ -23,22 +23,34 @@ ClientAliveCountMax 2
 X11Forwarding no
 EOF
 
-    cat > /etc/sudoers.d/99-audit-log <<'EOF'
+    tmp_sudoers="$(mktemp)"
+    cat > "$tmp_sudoers" <<'EOF'
 Defaults log_output
 Defaults!/usr/bin/sudoreplay !log_output
 Defaults logfile="/var/log/sudo.log"
 EOF
-    chmod 0440 /etc/sudoers.d/99-audit-log
+    if visudo -c -f "$tmp_sudoers" >/dev/null 2>&1; then
+        install -m 0440 "$tmp_sudoers" /etc/sudoers.d/99-audit-log
+    else
+        log_warn "Error de sintaxis en sudoers de auditoria. Omitiendo instalacion."
+    fi
+    rm -f "$tmp_sudoers"
 
-    systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
-    log "            SSH asegurado y auditoria activa en /var/log/sudo.log."
+    if sshd -t >/dev/null 2>&1; then
+        systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
+        log "            SSH asegurado y auditoria activa en /var/log/sudo.log."
+    else
+        log_warn "Error de sintaxis en configuracion de SSH. No se reinicia el servicio para evitar auto-bloqueo."
+    fi
 }
 
 revert_ssh_hardening() {
     validate_root
     log "[Seguridad] Revirtiendo hardening de SSH y auditoria sudo..."
     rm -f /etc/ssh/sshd_config.d/01-hardening.conf /etc/sudoers.d/99-audit-log
-    systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
+    if sshd -t >/dev/null 2>&1; then
+        systemctl restart ssh 2>/dev/null || systemctl restart sshd 2>/dev/null || true
+    fi
     log "            Configuracion SSH por defecto restaurada."
 }
 
