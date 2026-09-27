@@ -65,7 +65,8 @@ EOF
     local dl_dir="/var/www/_dashboard/downloads"
     mkdir -p "$dl_dir"
     cp -f "${ssl_dir}/rootCA.crt" "${dl_dir}/rootCA.crt"
-    chmod 644 "${dl_dir}/rootCA.crt"
+    cp -f "${ssl_dir}/webserver.crt" "${dl_dir}/webserver.crt"
+    chmod 644 "${dl_dir}"/*.crt
     chown -R www-data:www-data "$dl_dir" 2>/dev/null || true
 
     log "      Certificados SSL listos (*.${BASE_DOMAIN} e IP ${SERVER_IP})."
