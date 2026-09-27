@@ -23,7 +23,8 @@ function panel_render_section(string $page, array $CONFIG, string $PANEL_ROOT): 
     $securityScan = $_SESSION['security_result'] ?? null;
     $sslResult = $_SESSION['ssl_result'] ?? null;
     $sslVerify = $_SESSION['ssl_verify_result'] ?? null;
-    $dbOptimizeResult = $_SESSION['db_result'] ?? null;
+    $dbOptimizeResult = $_SESSION['db_optimize_result'] ?? $_SESSION['db_result'] ?? null;
+    $projectDbResult = $_SESSION['project_db_result'] ?? null;
     $backupRestoreResult = $_SESSION['backup_result'] ?? null;
     $backupVerify = $_SESSION['backup_verify_result'] ?? null;
     $projectVerifyResult = $_SESSION['project_result'] ?? null;
