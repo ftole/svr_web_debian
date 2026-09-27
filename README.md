@@ -46,7 +46,7 @@
 | **Cache y Memoria** | Redis Server local + extension PHP `php-redis` |
 | **Base de Datos** | MariaDB 11.8 con acceso administrativo dual (`localhost` y `127.0.0.1`) |
 | **Panel de BD** | phpMyAdmin 5.x sobre subdominio dedicado, sin advertencias de almacenamiento |
-| **Panel y Control Web** | Panel de Control minimalista en el dominio base (`https://empresa.local`) con login, resumen de salud, gestion de proyectos y bases de datos, seguridad, certificados, respaldos, diagnostico y descargas |
+| **Panel y Control Web** | Panel de Control minimalista en el dominio base (`https://empresa.local`) con telemetría en tiempo real SVG, gestión de proyectos, bases de datos, servicios, seguridad, certificados, respaldos, diagnóstico y configuración |
 | **Acceso Web Dual** | Subdominios dinámicos (`https://<proyecto>.empresa.local`) o rutas directas (`https://empresa.local/<proyecto>/` y `https://<IP>/<proyecto>/`) |
 | **Comparticion de Archivos**| Recurso unico Samba SMBv3 `[proyectos]` con mapeo resiliente (`Z:\` a `T:\`) |
 | **Seguridad de Red** | UFW (puertos 22, 80, 443, 445, 3389) + Fail2ban |
@@ -69,7 +69,7 @@ flowchart TD
 
     subgraph Servidor Debian 13
         direction TB
-        Firewall["UFW Firewall (22, 80, 443, 445)"]
+        Firewall["UFW Firewall (22, 80, 443, 445, 3389)"]
         Apache["Apache 2.4 MPM Event"]
 
         subgraph VirtualHosts
@@ -133,7 +133,7 @@ Consulte la guia detallada con ejemplos en [`Manual.md`](Manual.md).
 - Servidor con **Debian 13 (Trixie)** x86_64.
 - Conectividad a Internet activa.
 - Acceso con usuario `root` o usuario con privilegios `sudo`.
-- Puertos libres: 22 (SSH), 80 (HTTP), 443 (HTTPS), 445 (Samba).
+- Puertos libres: 22 (SSH), 80 (HTTP), 443 (HTTPS), 445 (Samba), 3389 (GNOME RDP opcional).
 
 ---
 
@@ -157,12 +157,12 @@ El instalador:
 Si desea automatizar el despliegue con variables predefinidas:
 
 ```bash
-sudo ASISTENTE_NONINTERACTIVE=1 \
+curl -fsSL https://raw.githubusercontent.com/ftole/svr_web_debian/main/install.sh | sudo ASISTENTE_NONINTERACTIVE=1 \
      SERVER_IP=10.1.0.4 \
      BASE_DOMAIN=empresa.local \
      ADMIN_USER=webadmin \
      ADMIN_PASS='ClaveSegura2026#' \
-     bash /tmp/install.sh
+     bash
 ```
 
 ---
@@ -231,21 +231,30 @@ srvctl [comando] [argumentos]
 | :--- | :--- |
 | `srvctl` | Inicia el menu grafico interactivo (TUI) con Whiptail |
 | `srvctl status` | Muestra el estado operativo de los servicios del stack |
-| `srvctl verify` | Ejecuta la suite de diagnostico profundo y auto-verificacion (40 comprobaciones) |
-| `srvctl project create <nombre>` | Crea la estructura base para un nuevo proyecto (`public_html/index.php`) |
-| `srvctl project db <nombre>` | Crea base de datos MariaDB, usuario, clave segura y genera archivo `.env` |
-| `srvctl project delete <nombre>` | Elimina un proyecto web de `/var/www/` y su base de datos asociada |
+| `srvctl verify` | Ejecuta la suite de diagnostico profundo y auto-verificacion (44 comprobaciones) |
+| `srvctl project create <nombre>` | Crea la estructura base para un nuevo proyecto (`public_html/index.php`) con repositorio Git |
+| `srvctl project db <nombre>` | Crea base de datos MariaDB, usuario dedicado, clave segura y genera archivo `.env` |
+| `srvctl project delete <nombre>` | Elimina un proyecto web de `/var/www/` y su base de datos previa copia en `/trash/` |
 | `srvctl project list` | Lista los proyectos activos detectados en `/var/www` |
-| `srvctl backup` | Ejecuta un respaldo manual inmediato de base de datos y archivos web |
-| `srvctl reset` | Revierte el servidor al estado base limpio (rollback seguro) |
+| `srvctl backup run` | Ejecuta un respaldo manual inmediato de base de datos y archivos web |
+| `srvctl backup restore-db <archivo>` | Restaura de forma protegida un volcado SQL comprimido verificando integridad con `gzip -t` |
+| `srvctl backup rollback-project <nom>` | Restaura de forma aislada un unico proyecto web desde un snapshot rotativo |
+| `srvctl service restart <servicio>` | Reinicia un servicio systemd previa verificacion de sintaxis (Apache y FPM) |
+| `srvctl service reload <servicio>` | Recarga la configuracion en caliente sin interrumpir conexiones |
+| `srvctl firewall allow <puerto>` | Abre un puerto en UFW con validacion numerica y protocolo |
+| `srvctl security ban <ip>` | Bloquea una IP en Fail2ban con proteccion contra auto-bloqueo del administrador |
+| `srvctl ssl renew` | Regenera el certificado SSL comodin SAN y recarga Apache tras validar sintaxis |
+| `srvctl system check-updates` | Comprueba paquetes actualizables del sistema operativo Debian 13 |
+| `srvctl system upgrade` | Aplica parches de seguridad del sistema con bloqueo exclusivo mutex (`flock`) |
+| `srvctl reset` | Revierte el servidor al estado base limpio (requiere confirmacion `DESTRUIR`) |
 | `srvctl deploy` | Ejecuta el despliegue del stack completo |
 
 ---
 
 ## Seguridad y auditoria
 
-- **UFW Firewall:** Politica de denegacion por defecto (`deny incoming`). Solo puertos estrictamente necesarios abiertos.
-- **Fail2ban:** Proteccion contra ataques de fuerza bruta SSH activa con baneo automatico de IPs.
+- **UFW Firewall:** Politica de denegacion por defecto (`deny incoming`). Solo puertos estrictamente necesarios abiertos (22, 80, 443, 445, 3389).
+- **Fail2ban:** Proteccion contra ataques de fuerza bruta SSH activa con baneo automatico de IPs y lista blanca (`ignoreip`).
 - **Auditoria Administrativa:** Toda ejecucion de comandos con privilegios elevados queda registrada con sello temporal en `/var/log/sudo.log`.
 - **Restricciones de Samba:** Los archivos sensibles (`.git`, `.env`, `.htaccess`, llaves privadas `*.key` y el panel de control `_dashboard`) estan vetados de la red compartida (`veto files`).
 - **Permisos SGID:** Las carpetas bajo `/var/www` mantienen el bit SGID (`2775`) y grupo `www-data` para evitar discrepancias de permisos entre Samba y Apache.
@@ -275,13 +284,15 @@ srvctl [comando] [argumentos]
 │   ├── system/network.sh       # Optimizacion de red (desactivar IPv6)
 │   ├── system/power.sh         # Politicas anti-suspension systemd
 │   ├── web/apache.sh           # VirtualHosts y ruteo mod_vhost_alias
-│   ├── web/dashboard.sh        # Panel de salud y recursos descargables
+│   ├── web/dashboard.sh        # Panel de salud, wrapper sudoers y recursos descargables
 │   └── web/ssl.sh              # Autoridad CA raiz y certificado comodin
 ├── templates/
 │   ├── dashboard/              # Panel de Control (index.php, app/, views/, partials/, assets/)
 │   └── windows/                # Scripts batch .bat de aprovisionamiento
 └── tests/
-    └── test_validator.sh       # Suite de pruebas unitarias y chaos testing
+    ├── test_validator.sh       # Suite de pruebas unitarias y chaos testing de entradas
+    ├── test_wrapper.sh         # Suite de pruebas de seguridad y lista blanca del wrapper
+    └── test_endpoints.sh       # Suite de pruebas de integracion de endpoints web
 ```
 
 ---
@@ -294,7 +305,7 @@ Para comprobar la integridad del stack en cualquier momento:
 sudo srvctl verify
 ```
 
-La suite valida:
+La suite valida 44 comprobaciones:
 - Servicios activos en systemd (Apache, PHP-FPM, MariaDB, Redis, Samba, UFW, Fail2ban).
 - Respuesta HTTP 200 en el dominio base (Dashboard) y subdominios.
 - Correcta ejecucion de PHP 8.4 y conectividad con Redis.
