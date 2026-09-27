@@ -189,16 +189,19 @@
         }
         if (slow.top) { renderTop(slow.top); }
 
-        ['cpu', 'mem', 'rx', 'tx'].forEach(function (key) {
-            while (history[key].length > HISTORY) { history[key].shift(); }
-        });
-        var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        var cpuColor = isDark ? '#38BDF8' : '#0284C7';
-        var memColor = isDark ? '#4E816F' : '#5C8D7B';
-        var netColor = isDark ? '#FBBF24' : '#D97706';
-        drawSpark($('chart-cpu'), history.cpu, cpuColor);
-        drawSpark($('chart-mem'), history.mem, memColor);
-        drawSpark($('chart-net'), history.rx, netColor);
+        var sparkCpu = $('chart-cpu');
+        if (sparkCpu) {
+            ['cpu', 'mem', 'rx', 'tx'].forEach(function (key) {
+                while (history[key].length > HISTORY) { history[key].shift(); }
+            });
+            var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            var cpuColor = isDark ? '#38BDF8' : '#0284C7';
+            var memColor = isDark ? '#4E816F' : '#5C8D7B';
+            var netColor = isDark ? '#FBBF24' : '#D97706';
+            drawSpark(sparkCpu, history.cpu, cpuColor);
+            drawSpark($('chart-mem'), history.mem, memColor);
+            drawSpark($('chart-net'), history.rx, netColor);
+        }
 
         var now = new Date();
         setText('live-updated', now.toLocaleTimeString());
@@ -227,7 +230,11 @@
     }
 
     function refresh() {
-        if (document.getElementById('chart-cpu')) { start(); } else { stop(); }
+        if (document.getElementById('material-status-monitor') || document.getElementById('live-services')) {
+            start();
+        } else {
+            stop();
+        }
     }
 
     document.addEventListener('visibilitychange', function () {
