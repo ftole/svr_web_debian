@@ -35,6 +35,7 @@ jobs:
       - name: Ejecutar Suite de Pruebas de Validacion (Chaos Testing)
         run: |
           bash tests/test_validator.sh
+          bash tests/test_wrapper.sh
 
       - name: Lint del workflow (actionlint)
         run: |
