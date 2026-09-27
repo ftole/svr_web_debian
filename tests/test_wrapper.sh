@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${REPO_ROOT}"
+
 # Extraer el wrapper de dashboard.sh para validarlo
 sed -n '/cat > \/usr\/local\/bin\/srvctl-web-wrapper <<'\''EOF'\''/,/^EOF$/p' modules/web/dashboard.sh | sed '1d;$d' > /tmp/test-srvctl-wrapper.sh
 chmod +x /tmp/test-srvctl-wrapper.sh
