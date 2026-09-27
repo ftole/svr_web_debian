@@ -555,7 +555,7 @@ function panel_audit_ssl(): array
 
 function panel_dump_db(string $project, array $config): string
 {
-    if (!preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/', $project)) {
+    if (!preg_match('/^[a-z0-9][a-z0-9_\-]*[a-z0-9]?$/', $project)) {
         return '';
     }
     $envDb = panel_read_env_db($project);
