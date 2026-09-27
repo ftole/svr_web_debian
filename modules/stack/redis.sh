@@ -29,7 +29,20 @@ install_redis() {
     systemctl enable --now redis-server >/dev/null 2>&1 || true
     systemctl restart redis-server >/dev/null 2>&1 || true
 
-    # Reiniciar PHP-FPM para activar php-redis
+    local fpm_bin=""
+    if command -v "php-fpm${PHP_VER}" >/dev/null 2>&1; then
+        fpm_bin="php-fpm${PHP_VER}"
+    elif command -v "php${PHP_VER}-fpm" >/dev/null 2>&1; then
+        fpm_bin="php${PHP_VER}-fpm"
+    elif command -v "php-fpm" >/dev/null 2>&1; then
+        fpm_bin="php-fpm"
+    fi
+
+    if [ -n "$fpm_bin" ]; then
+        if ! "$fpm_bin" -t >/dev/null 2>&1; then
+            die "Error de sintaxis en configuracion de PHP-FPM (${fpm_bin} -t fallo). No se reinicia el servicio."
+        fi
+    fi
     systemctl restart "php${PHP_VER}-fpm" >/dev/null 2>&1 || true
 
     log "        Redis Server activo y enlazado a PHP ${PHP_VER}."
