@@ -1,27 +1,6 @@
 <?php
 $services = panel_services();
 $php_version = panel_php_version();
-$spec = [
-
-        'title' => 'Módulo 4: Servicios del Sistema (Systemd)',
-        'endpoints' => [
-            'POST /?action=service_restart (body: { service: "apache2|php8.4-fpm|mariadb|redis-server|smbd|ufw|fail2ban" })',
-            'POST /?action=service_reload (body: { service: "apache2|php8.4-fpm" })'
-        ],
-        'commands' => [
-            'systemctl is-active <servicio>',
-            'systemctl restart <servicio>',
-            'systemctl reload apache2 && systemctl reload php8.4-fpm'
-        ],
-        'paths' => [
-            '/lib/systemd/system/*.service',
-            '/var/log/apache2/error.log',
-            '/var/log/php8.4-fpm.log'
-        ],
-        'notes' => 'Las acciones sobre Systemd requieren privilegios de sudo para el backend sin solicitud interactiva de contraseña (sudoers). Limitar timeouts de ejecución para evitar colapsar la respuesta HTTP si un servicio tarda en arrancar.'
-    
-];
-require $PANEL_ROOT . '/partials/dev_spec.php';
 ?>
 
 <!-- 1. Banner Principal de Servicios -->
