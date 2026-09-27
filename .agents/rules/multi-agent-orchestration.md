@@ -14,7 +14,7 @@ Ninguna tarea compleja (nuevas funcionalidades, refactorizaciones de infraestruc
 
 2. **Agente de Infraestructura y Scripts de Sistema:**
    - Trabaja sobre `bin/srvctl`, `core/` y `modules/`.
-   - Implementa patrones defensivos (`set -euo pipefail`, trampas `trap`, escrituras atómicas, `flock`, pre-vuelos de configuración).
+   - Implementa patrones defensivos (`set -euo pipefail` en wrappers/instalador y `set -eo pipefail` en orquestadores modulares, trampas `trap`, escrituras atómicas, `flock`, pre-vuelos de configuración).
    - Asegura la paridad de Debian 13 y compatibilidad estricta con systemd.
 
 3. **Agente de Frontend y Dashboard:**
