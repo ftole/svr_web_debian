@@ -1,7 +1,9 @@
 <?php
 $projects = panel_projects($CONFIG);
 $backups = panel_backups();
-$dbResult = $dbResult ?? ($_SESSION['db_result'] ?? null);
+$rawDbRes = $projectDbResult ?? ($_SESSION['project_db_result'] ?? ($_SESSION['db_result'] ?? null));
+$dbResult = (is_array($rawDbRes) && !empty($rawDbRes['database'])) ? $rawDbRes : null;
+unset($_SESSION['project_db_result'], $_SESSION['db_result']);
 ?>
 
 <!-- 1. Banner Principal de Proyectos -->
