@@ -1,26 +1,6 @@
 <?php
 $ssl = panel_ssl();
 $samba = panel_samba() ?? ['config_valid' => true, 'sessions' => []];
-$spec = [
-    'title' => 'Módulo 6: Certificados SSL Comodín y Servidor Samba SMBv3',
-    'endpoints' => [
-        'POST /?action=ssl_renew',
-        'GET /downloads/rootCA.crt (Descarga binaria del certificado raíz)',
-        'POST /?action=samba_restart'
-    ],
-    'commands' => [
-        'openssl x509 -in /etc/ssl/certs/empresa.local.crt -noout -dates -subject',
-        'smbstatus --shares --locks',
-        'srvctl ssl renew (regeneración y recarga de Apache)'
-    ],
-    'paths' => [
-        '/etc/ssl/certs/rootCA.crt y /etc/ssl/private/rootCA.key',
-        '/etc/ssl/certs/empresa.local.crt y /etc/ssl/private/empresa.local.key',
-        '/etc/samba/smb.conf (recurso maestro [proyectos] con veto files)'
-    ],
-    'notes' => 'El certificado comodín SAN debe cubrir *.empresa.local y empresa.local. La autoridad CA raíz privada debe poder instalarse en clientes Windows y navegadores mediante rootCA.crt para eliminar advertencias SSL.'
-];
-require $PANEL_ROOT . '/partials/dev_spec.php';
 ?>
 
 <!-- 1. Banner Principal de Certificados SSL/TLS -->
