@@ -1,5 +1,6 @@
 <?php
 $db = panel_databases($CONFIG ?? []);
+$mariadbMetrics = $db['metrics'] ?? [];
 ?>
 
 <!-- 1. Banner Principal de Base de Datos -->
@@ -78,8 +79,8 @@ $db = panel_databases($CONFIG ?? []);
             <span class="module-kpi-title">Consultas / Rendimiento</span>
             <span class="tag tag-ok">Normal</span>
         </div>
-        <div class="module-kpi-val"><?= !empty($mariadbMetrics) ? e($mariadbMetrics['qps']) : '0.28' ?> QPS</div>
-        <div class="module-kpi-sub">Hilos activos: 2 · Max conexiones: 151</div>
+        <div class="module-kpi-val"><?= e((string)($mariadbMetrics['qps'] ?? '0.0')) ?> QPS</div>
+        <div class="module-kpi-sub">Hilos activos: <?= e((string)($mariadbMetrics['threads'] ?? '0')) ?> · Max conexiones: 151</div>
     </div>
 </div>
 
