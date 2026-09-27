@@ -1,25 +1,6 @@
 <?php
 $overview = panel_overview($CONFIG);
 $panelVersion = $CONFIG['PANEL_VERSION'] ?? '1.0.0';
-$spec = [
-    'title' => 'Módulo 10: Configuración Centralizada /etc/srvctl.conf',
-    'endpoints' => [
-        'POST /?action=settings_save_network (body: { server_hostname, server_ip, base_domain, prod_sub, stg_sub, db_sub })',
-        'POST /?action=settings_change_password (body: { current_password, new_password })'
-    ],
-    'commands' => [
-        'Sobrescritura atómica de /etc/srvctl.conf con permisos 600',
-        'hostnamectl set-hostname <server_hostname>',
-        'srvctl ssl renew (si se modifica el dominio base)'
-    ],
-    'paths' => [
-        '/etc/srvctl.conf (archivo de configuración maestro)',
-        '/etc/hosts (resolución local del servidor)',
-        '/etc/apache2/sites-available/00-dashboard.conf'
-    ],
-    'notes' => 'Validar estrictamente formato IPv4 (0-255), dominios FQDN y hostname antes de persistir en /etc/srvctl.conf. El archivo debe pertenecer a root:root con permisos chmod 600 para proteger credenciales y contraseñas.'
-];
-require $PANEL_ROOT . '/partials/dev_spec.php';
 ?>
 
 <div class="section-header">
