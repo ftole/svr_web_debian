@@ -44,9 +44,10 @@ install_php() {
         log "        Composer ya se encuentra instalado."
     fi
 
-    # Pool dedicado de PHP-FPM para el Dashboard (Aislamiento de administracion)
     mkdir -p "/etc/php/${PHP_VER}/fpm/pool.d"
-    cat > "/etc/php/${PHP_VER}/fpm/pool.d/dashboard.conf" <<EOF
+    local tmp_pool
+    tmp_pool="$(mktemp)"
+    cat > "$tmp_pool" <<EOF
 [dashboard]
 user = www-data
 group = www-data
@@ -65,6 +66,23 @@ pm.max_requests = 500
 php_admin_value[memory_limit] = 256M
 php_admin_value[max_execution_time] = 120
 EOF
+    install -m 644 "$tmp_pool" "/etc/php/${PHP_VER}/fpm/pool.d/dashboard.conf"
+    rm -f "$tmp_pool"
+
+    local fpm_bin=""
+    if command -v "php-fpm${PHP_VER}" >/dev/null 2>&1; then
+        fpm_bin="php-fpm${PHP_VER}"
+    elif command -v "php${PHP_VER}-fpm" >/dev/null 2>&1; then
+        fpm_bin="php${PHP_VER}-fpm"
+    elif command -v "php-fpm" >/dev/null 2>&1; then
+        fpm_bin="php-fpm"
+    fi
+
+    if [ -n "$fpm_bin" ]; then
+        if ! "$fpm_bin" -t >/dev/null 2>&1; then
+            die "Error de sintaxis en configuracion de PHP-FPM (${fpm_bin} -t fallo). No se reinicia el servicio."
+        fi
+    fi
     systemctl restart "php${PHP_VER}-fpm" >/dev/null 2>&1 || true
 
     log "        PHP ${PHP_VER} FPM y Composer configurados correctamente."
