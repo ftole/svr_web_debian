@@ -169,6 +169,7 @@ $php_version = panel_php_version();
                                 <button type="submit" class="btn btn-outline btn-sm">Reiniciar</button>
                             </form>
 
+                            <?php if (in_array($s['unit'], ['apache2', 'php8.4-fpm'], true) || str_starts_with($s['unit'], 'php')): ?>
                             <form method="POST" action="/" data-loading="Recargando <?= e($s['unit']) ?>…" style="display:inline;">
                                 <input type="hidden" name="action" value="service_reload">
                                 <input type="hidden" name="unit" value="<?= e($s['unit']) ?>">
@@ -176,6 +177,7 @@ $php_version = panel_php_version();
                                 <?= panel_csrf_field() ?>
                                 <button type="submit" class="btn btn-outline btn-sm">Recargar</button>
                             </form>
+                            <?php endif; ?>
                         </div>
                     </td>
                 </tr>
