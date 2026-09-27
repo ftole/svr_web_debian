@@ -87,7 +87,7 @@ create_database() {
 is_protected_db_user() {
     local u="$1"
     case "$u" in
-        root|pma|debian-sys-maint|mariadb.sys|"${ADMIN_USER:-webadmin}") return 0 ;;
+        root|pma|debian-sys-maint|mariadb.sys|mysql|mysql.*|"${ADMIN_USER:-webadmin}") return 0 ;;
         *) return 1 ;;
     esac
 }
@@ -115,9 +115,18 @@ delete_database() {
     mkdir -p "$trash_dir"
     local ts
     ts="$(date +%Y%m%d_%H%M%S)"
+    local trash_file="${trash_dir}/${name}_${ts}.sql.gz"
     if mariadb -e "USE \`${name}\`;" 2>/dev/null; then
-        log "[MariaDB] Generando respaldo preventivo en ${trash_dir}/${name}_${ts}.sql.gz..."
-        mariadb-dump --single-transaction --quick "${name}" 2>/dev/null | gzip -9 > "${trash_dir}/${name}_${ts}.sql.gz" 2>/dev/null || true
+        log "[MariaDB] Generando respaldo preventivo en ${trash_file}..."
+        if mariadb-dump --single-transaction --quick "${name}" 2>/dev/null | gzip -9 > "${trash_file}" 2>/dev/null; then
+            if ! gzip -t "${trash_file}" 2>/dev/null; then
+                rm -f "${trash_file}"
+                die "Fallo de integridad al verificar el respaldo preventivo (${trash_file}). Se aborta la eliminacion de ${name} por seguridad."
+            fi
+        else
+            rm -f "${trash_file}"
+            die "No se pudo generar el respaldo preventivo en ${trash_file}. Se aborta la eliminacion de ${name} por seguridad."
+        fi
     fi
 
     log "[MariaDB] Eliminando base de datos '${name}'..."
@@ -140,6 +149,14 @@ optimize_database() {
     if ! mariadb -e "SELECT 1;" >/dev/null 2>&1; then
         die "MariaDB no se encuentra activo o no responde para optimizacion."
     fi
+
+    local lockfile="/run/lock/srvctl-mariadb.lock"
+    mkdir -p /run/lock
+    exec 202>"$lockfile"
+    if ! flock -n 202; then
+        die "Otra operacion de optimizacion de base de datos ya se encuentra en ejecucion."
+    fi
+
     log "[MariaDB] Optimizando y analizando todas las tablas (mariadb-check)..."
     mariadb-check -A --optimize
     log "[MariaDB] Optimizacion de tablas completada exitosamente."
